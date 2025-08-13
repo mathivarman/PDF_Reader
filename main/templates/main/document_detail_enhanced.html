@@ -158,6 +158,9 @@
                     <a href="{% url 'main:document_list' %}" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Back to Documents
                     </a>
+                    <a href="{% url 'main:document_qa' document.id %}" class="btn btn-primary">
+                        <i class="fas fa-question-circle me-2"></i>Ask Questions
+                    </a>
                     <button class="btn btn-danger delete-document" data-document-id="{{ document.id }}">
                         <i class="fas fa-trash me-2"></i>Delete
                     </button>

@@ -11,11 +11,16 @@ import uuid
 from datetime import datetime
 import logging
 
-from .models import Document, Analysis, UserSession
+from .models import Document, Analysis, UserSession, Question, Answer, Citation
 from .forms import DocumentUploadForm
 from .services import DocumentProcessingService, UserSessionService, DocumentManagementService
 from .performance_monitor import performance_monitor, check_memory_usage, check_disk_space, get_performance_alerts
 from .cache_manager import CacheManager
+from .qa_service import qa_service
+from .semantic_search import semantic_search_engine
+from .enhanced_qa_service import enhanced_qa_service
+from .advanced_semantic_search import advanced_semantic_search_engine
+from .performance_optimizer import performance_optimizer
 
 logger = logging.getLogger(__name__)
 
@@ -248,3 +253,187 @@ def performance_dashboard(request):
         logger.error(f"Error in performance dashboard: {e}")
         messages.error(request, 'Error loading performance dashboard.')
         return redirect('main:home')
+
+def document_qa(request, document_id):
+    """Enhanced Q&A interface for a document with advanced features."""
+    try:
+        # Get document
+        document = Document.objects.get(id=document_id)
+        
+        # Get enhanced Q&A summary
+        qa_summary = enhanced_qa_service.get_enhanced_qa_summary(document_id)
+        
+        # Get enhanced question history
+        recent_questions = enhanced_qa_service.get_enhanced_question_history(document_id, limit=5)
+        
+        # Build advanced search index if document is processed
+        if document.status == 'processed':
+            try:
+                # Build advanced search index
+                advanced_semantic_search_engine.build_advanced_index(document)
+                
+                # Optimize document processing
+                performance_optimizer.optimize_document_processing(document)
+                
+            except Exception as e:
+                logger.warning(f"Could not build advanced search index: {e}")
+        
+        # Get performance metrics
+        performance_metrics = performance_optimizer.get_performance_metrics()
+        
+        context = {
+            'document': document,
+            'qa_summary': qa_summary,
+            'recent_questions': recent_questions,
+            'performance_metrics': performance_metrics,
+            'enhanced_features': True,  # Flag to enable enhanced UI features
+        }
+        
+        return render(request, 'main/document_qa.html', context)
+        
+    except Document.DoesNotExist:
+        messages.error(request, 'Document not found.')
+        return redirect('main:document_list')
+    except Exception as e:
+        logger.error(f"Error in document_qa: {e}")
+        messages.error(request, 'Error loading Q&A interface.')
+        return redirect('main:document_list')
+
+@require_http_methods(["POST"])
+def ask_question(request, document_id):
+    """Handle enhanced question asking via AJAX with advanced features."""
+    try:
+        question_text = request.POST.get('question_text', '').strip()
+        
+        if not question_text:
+            return JsonResponse({
+                'success': False,
+                'error': 'Question text is required.'
+            })
+        
+        # Process question using enhanced Q&A service
+        result = enhanced_qa_service.process_enhanced_question(question_text, document_id)
+        
+        if result['success']:
+            return JsonResponse({
+                'success': True,
+                'answer': result['answer'],
+                'confidence_score': result['confidence_score'],
+                'confidence_breakdown': result.get('confidence_breakdown', {}),
+                'citations': result['citations'],
+                'processing_time': result['processing_time'],
+                'question_id': result['question_id'],
+                'answer_id': result.get('answer_id'),
+                'search_results': result.get('search_results', []),
+                'recommendations': result.get('recommendations', {}),
+                'answer_type': result.get('answer_type', 'generated'),
+                'grounded': result.get('grounded', True),
+                'search_metadata': result.get('search_metadata', {}),
+                'performance_metrics': result.get('performance_metrics', {})
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': result['error']
+            })
+            
+    except Exception as e:
+        logger.error(f"Error in ask_question: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'An error occurred while processing your question.'
+        })
+
+def question_history(request, document_id):
+    """Get enhanced question history for a document."""
+    try:
+        # Get enhanced question history
+        history = enhanced_qa_service.get_enhanced_question_history(document_id, limit=20)
+        
+        return JsonResponse({
+            'success': True,
+            'history': history
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in question_history: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error loading question history.'
+        })
+
+def document_qa_summary(request, document_id):
+    """Get enhanced Q&A summary for a document."""
+    try:
+        # Get enhanced Q&A summary
+        summary = enhanced_qa_service.get_enhanced_qa_summary(document_id)
+        
+        return JsonResponse({
+            'success': True,
+            'summary': summary
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in document_qa_summary: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error loading Q&A summary.'
+        })
+
+def enhanced_performance_metrics(request):
+    """Get enhanced performance metrics for the system."""
+    try:
+        # Get comprehensive performance metrics
+        metrics = performance_optimizer.get_performance_metrics()
+        
+        # Get search statistics
+        search_stats = advanced_semantic_search_engine.get_search_statistics()
+        
+        # Get Q&A statistics
+        qa_stats = enhanced_qa_service.qa_stats
+        
+        return JsonResponse({
+            'success': True,
+            'performance_metrics': metrics,
+            'search_statistics': search_stats,
+            'qa_statistics': qa_stats,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in enhanced_performance_metrics: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error loading performance metrics.'
+        })
+
+def optimize_document(request, document_id):
+    """Optimize document processing and search index."""
+    try:
+        document = Document.objects.get(id=document_id)
+        
+        # Optimize document processing
+        success = performance_optimizer.optimize_document_processing(document)
+        
+        if success:
+            return JsonResponse({
+                'success': True,
+                'message': f'Document "{document.title}" optimized successfully.'
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Failed to optimize document.'
+            })
+            
+    except Document.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Document not found.'
+        })
+    except Exception as e:
+        logger.error(f"Error in optimize_document: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error optimizing document.'
+        })

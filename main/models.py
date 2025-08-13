@@ -214,6 +214,24 @@ class Question(models.Model):
     answer = models.TextField(blank=True)
     confidence_score = models.FloatField(default=0.0)
     
+    # Question classification (Week 10 enhancement)
+    question_type = models.CharField(max_length=50, default='unknown', 
+                                   choices=[
+                                       ('factual', 'Factual'),
+                                       ('comparison', 'Comparison'),
+                                       ('procedural', 'Procedural'),
+                                       ('interpretation', 'Interpretation'),
+                                       ('yes_no', 'Yes/No'),
+                                       ('unknown', 'Unknown')
+                                   ])
+    complexity_level = models.CharField(max_length=20, default='medium',
+                                      choices=[
+                                          ('simple', 'Simple'),
+                                          ('medium', 'Medium'),
+                                          ('complex', 'Complex')
+                                      ])
+    key_terms = models.JSONField(default=list, help_text="Extracted key terms from question")
+    
     # Citations
     citations = models.JSONField(default=list, help_text="List of source citations")
     
@@ -228,6 +246,69 @@ class Question(models.Model):
     
     def __str__(self):
         return f"Q: {self.question_text[:50]}..."
+
+class Answer(models.Model):
+    """Model for storing detailed answers with metadata."""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='detailed_answers')
+    
+    # Answer details
+    answer_text = models.TextField()
+    answer_type = models.CharField(max_length=50, default='generated', 
+                                 choices=[('generated', 'Generated'), ('extracted', 'Extracted')])
+    
+    # Confidence and quality
+    confidence_score = models.FloatField(default=0.0)
+    relevance_score = models.FloatField(default=0.0)
+    
+    # Source information
+    source_chunks = models.JSONField(default=list, help_text="List of source chunk IDs")
+    source_pages = models.JSONField(default=list, help_text="List of source page numbers")
+    
+    # Processing metadata
+    generation_time = models.FloatField(default=0.0)
+    model_used = models.CharField(max_length=100, default='sentence-transformers')
+    grounded = models.BooleanField(default=False, help_text="Whether answer is grounded in document content")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-confidence_score', '-created_at']
+        verbose_name = "Answer"
+        verbose_name_plural = "Answers"
+    
+    def __str__(self):
+        return f"Answer for: {self.question.question_text[:30]}..."
+
+class Citation(models.Model):
+    """Model for storing detailed citations and references."""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    answer = models.ForeignKey(Answer, on_delete=models.CASCADE, related_name='citations')
+    
+    # Citation details
+    citation_text = models.TextField()
+    source_chunk = models.ForeignKey('DocumentChunk', on_delete=models.CASCADE, related_name='citations')
+    
+    # Location information
+    page_number = models.IntegerField()
+    start_position = models.IntegerField()
+    end_position = models.IntegerField()
+    
+    # Relevance scoring
+    relevance_score = models.FloatField(default=0.0)
+    confidence_score = models.FloatField(default=0.0)
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-relevance_score', 'page_number']
+        verbose_name = "Citation"
+        verbose_name_plural = "Citations"
+    
+    def __str__(self):
+        return f"Citation from page {self.page_number}: {self.citation_text[:50]}..."
 
 class UserSession(models.Model):
     """Model for tracking user sessions and document access."""

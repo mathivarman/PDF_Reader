@@ -17,6 +17,7 @@ from .clause_detector import ClauseDetector, ClauseType, ImportanceLevel
 from .red_flag_detector import RedFlagDetector, RedFlagCategory, RiskLevel
 from .cache_manager import CacheManager
 from .performance_monitor import monitor_performance, track_performance
+from .semantic_search import semantic_search_engine
 
 logger = logging.getLogger(__name__)
 
@@ -258,6 +259,13 @@ class DocumentProcessingService:
                     for red_flag in red_flags
                 ]
             }
+            
+            # Process document for semantic search
+            try:
+                semantic_search_engine.process_document_chunks(document)
+                logger.info(f"Semantic search processing completed for document {document_id}")
+            except Exception as e:
+                logger.warning(f"Semantic search processing failed for document {document_id}: {e}")
             
             # Cache the analysis results
             CacheManager.cache_document_analysis(str(document_id), analysis_data)
