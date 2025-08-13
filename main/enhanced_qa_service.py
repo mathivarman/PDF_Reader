@@ -6,10 +6,11 @@ Week 12: Advanced Features Implementation
 
 import logging
 import time
+import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from django.db import transaction
+from django.db import transaction, models
 from .models import Document, Question, Answer, Citation, DocumentChunk
 from .advanced_semantic_search import advanced_semantic_search_engine
 from .performance_optimizer import performance_optimizer, optimize_qa
@@ -48,9 +49,15 @@ class EnhancedQAService:
             
             # Get document
             try:
+                logger.info(f"Looking for document with ID: {document_id}")
                 document = Document.objects.get(id=document_id)
+                logger.info(f"Found document: {document.title}")
             except Document.DoesNotExist:
+                logger.error(f"Document not found with ID: {document_id}")
                 return self._create_error_response('Document not found')
+            except Exception as e:
+                logger.error(f"Error getting document: {e}")
+                return self._create_error_response(f'Error getting document: {e}')
             
             # Check document status
             if document.status != 'processed':
@@ -317,6 +324,57 @@ class EnhancedQAService:
         else:
             return 'complex'
     
+    def _classify_question_type(self, question_text: str) -> str:
+        """Classify question type based on content."""
+        question_lower = question_text.lower()
+        
+        # Yes/No questions
+        yes_no_patterns = [
+            r'\b(is|are|was|were|does|do|did|has|have|had|can|could|will|would|should)\b.*\?',
+            r'\b(yes|no)\b.*\?'
+        ]
+        for pattern in yes_no_patterns:
+            if re.search(pattern, question_lower):
+                return 'yes_no'
+        
+        # Comparison questions
+        comparison_patterns = [
+            r'\b(compare|difference|similar|versus|vs|between|among)\b',
+            r'\b(which|what).*\b(better|worse|more|less|higher|lower)\b'
+        ]
+        for pattern in comparison_patterns:
+            if re.search(pattern, question_lower):
+                return 'comparison'
+        
+        # Procedural questions
+        procedural_patterns = [
+            r'\b(how|what.*steps|procedure|process|method)\b',
+            r'\b(what.*do|what.*should|instructions|guide)\b'
+        ]
+        for pattern in procedural_patterns:
+            if re.search(pattern, question_lower):
+                return 'procedural'
+        
+        # Interpretation questions
+        interpretation_patterns = [
+            r'\b(what.*mean|interpret|explain|understand|imply)\b',
+            r'\b(why|reason|cause|purpose|intent)\b'
+        ]
+        for pattern in interpretation_patterns:
+            if re.search(pattern, question_lower):
+                return 'interpretation'
+        
+        # Factual questions
+        factual_patterns = [
+            r'\b(what|when|where|who|which)\b',
+            r'\b(amount|number|date|time|location|person)\b'
+        ]
+        for pattern in factual_patterns:
+            if re.search(pattern, question_lower):
+                return 'factual'
+        
+        return 'unknown'
+    
     def _has_legal_terms(self, text: str) -> bool:
         """Check if text contains legal terms."""
         legal_terms = {
@@ -351,7 +409,7 @@ class EnhancedQAService:
         """Generate comprehensive recommendations."""
         try:
             # Get document analysis data
-            analysis = document.analysis_set.first()
+            analysis = document.analyses.first()
             
             # Generate recommendations using recommendation engine
             recommendations = recommendation_manager.generate_comprehensive_recommendations(
@@ -383,7 +441,7 @@ class EnhancedQAService:
             question = Question.objects.create(
                 document=document,
                 question_text=question_text,
-                question_type='enhanced',
+                question_type=self._classify_question_type(question_text),
                 complexity_level=self._assess_question_complexity(question_text),
                 processing_time=0.0  # Will be updated later
             )
@@ -414,11 +472,18 @@ class EnhancedQAService:
             citations = []
             
             for result in search_results:
+                # Get the source chunk object
+                try:
+                    source_chunk = DocumentChunk.objects.get(id=result['chunk_id'])
+                except DocumentChunk.DoesNotExist:
+                    logger.warning(f"Source chunk {result['chunk_id']} not found, skipping citation")
+                    continue
+                
                 # Create citation record
                 citation = Citation.objects.create(
                     answer=answer,
                     citation_text=result['chunk_text'][:500] + "..." if len(result['chunk_text']) > 500 else result['chunk_text'],
-                    source_chunk_id=result['chunk_id'],
+                    source_chunk=source_chunk,
                     page_number=result.get('page_number', 0),
                     start_position=0,
                     end_position=len(result['chunk_text']),
@@ -618,6 +683,24 @@ class EnhancedQAService:
                 'recent_questions': [],
                 'performance_metrics': {}
             }
+
+    def _create_error_response(self, error_message: str) -> Dict[str, Any]:
+        """Create error response."""
+        return {
+            'success': False,
+            'error': error_message,
+            'answer': 'An error occurred while processing your question.',
+            'confidence_score': 0.0,
+            'citations': [],
+            'search_results': [],
+            'recommendations': {
+                'recommendations': {},
+                'total_count': 0,
+                'summary': 'Error occurred during processing'
+            },
+            'answer_type': 'error',
+            'grounded': False
+        }
 
 # Global enhanced Q&A service instance
 enhanced_qa_service = EnhancedQAService()

@@ -91,7 +91,7 @@ class SemanticSearchEngine:
                 return list(chunks)
             
             # Get text from analysis
-            analysis = document.analysis_set.first()
+            analysis = document.analyses.first()
             if not analysis:
                 logger.warning(f"No analysis found for document: {document.title}")
                 return []

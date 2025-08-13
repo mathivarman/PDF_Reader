@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-08-13T20:23:14.529992",
+  "tests_run": 0,
+  "tests_passed": 0,
+  "tests_failed": 3,
+  "test_details": [
+    {
+      "module": "main.tests_security.SecurityValidatorTestCase",
+      "status": "ERROR",
+      "message": "table \"main_usersession\" already exists"
+    },
+    {
+      "module": "main.tests_security.FileUploadSecurityTestCase",
+      "status": "ERROR",
+      "message": "setup_test_environment() was already called and can't be called again without first calling teardown_test_environment()."
+    },
+    {
+      "module": "main.tests_security.DocumentUploadFormSecurityTestCase",
+      "status": "ERROR",
+      "message": "setup_test_environment() was already called and can't be called again without first calling teardown_test_environment()."
+    }
+  ],
+  "security_score": 0,
+  "recommendations": [
+    "Fix failed security tests before deployment",
+    "Security score below 90%. Review and improve security measures."
+  ]
+}

@@ -73,7 +73,7 @@ class AdvancedSemanticSearchEngine:
                 max_features=10000,
                 ngram_range=(1, 2),
                 stop_words='english',
-                min_df=2
+                min_df=1  # Changed from 2 to 1 to handle single documents
             )
             
             logger.info("Advanced semantic search models initialized successfully")
@@ -126,11 +126,11 @@ class AdvancedSemanticSearchEngine:
             logger.info(f"Building advanced search index for document: {document.title}")
             
             # Check cache first
-            cache_key = f"advanced_index_{document.id}"
+            cache_key = f"advanced_index_{str(document.id)}"
             if self.use_cache and cache.get(cache_key):
                 logger.info(f"Using cached advanced index for document: {document.title}")
                 cached_data = cache.get(cache_key)
-                self.document_indexes[document.id] = cached_data
+                self.document_indexes[str(document.id)] = cached_data
                 return True
             
             # Get document chunks
@@ -169,13 +169,13 @@ class AdvancedSemanticSearchEngine:
                 'chunk_metadata': chunk_metadata,
                 'tfidf_matrix': embeddings_data['tfidf'],
                 'tfidf_vectorizer': self.tfidf_vectorizer,
-                'document_id': document.id,
+                'document_id': str(document.id),
                 'chunk_count': len(chunks),
                 'created_at': time.time()
             }
             
             # Store in memory and cache
-            self.document_indexes[document.id] = index_data
+            self.document_indexes[str(document.id)] = index_data
             
             if self.use_cache:
                 # Cache the index data (without FAISS index as it's not serializable)
@@ -205,7 +205,7 @@ class AdvancedSemanticSearchEngine:
             start_time = time.time()
             
             # Check cache for query results
-            cache_key = f"search_results_{document.id}_{hash(query)}_{top_k}"
+            cache_key = f"search_results_{str(document.id)}_{hash(query)}_{top_k}"
             if self.use_cache:
                 cached_results = cache.get(cache_key)
                 if cached_results:
@@ -215,11 +215,11 @@ class AdvancedSemanticSearchEngine:
                 self.cache_misses += 1
             
             # Build index if not exists
-            if document.id not in self.document_indexes:
+            if str(document.id) not in self.document_indexes:
                 if not self.build_advanced_index(document):
                     return []
             
-            index_data = self.document_indexes[document.id]
+            index_data = self.document_indexes[str(document.id)]
             
             # Step 1: Initial retrieval with bi-encoder
             initial_results = self._bi_encoder_search(query, index_data, top_k * 2)
@@ -565,11 +565,11 @@ class AdvancedSemanticSearchEngine:
             logger.info(f"Optimizing search index for document: {document.title}")
             
             # Rebuild index with optimized parameters
-            if document.id in self.document_indexes:
-                del self.document_indexes[document.id]
+            if str(document.id) in self.document_indexes:
+                del self.document_indexes[str(document.id)]
             
             # Clear cache for this document
-            cache_key = f"advanced_index_{document.id}"
+            cache_key = f"advanced_index_{str(document.id)}"
             cache.delete(cache_key)
             
             # Rebuild with optimized settings

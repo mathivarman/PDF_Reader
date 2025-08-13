@@ -132,8 +132,8 @@ class PerformanceOptimizer:
         try:
             # Preload recent documents
             recent_documents = Document.objects.filter(
-                created_at__gte=datetime.now() - timedelta(days=7)
-            ).order_by('-created_at')[:10]
+                uploaded_at__gte=datetime.now() - timedelta(days=7)
+            ).order_by('-uploaded_at')[:10]
             
             for document in recent_documents:
                 cache_key = f"document_analysis_{document.id}"
@@ -159,13 +159,13 @@ class PerformanceOptimizer:
         """Preload document analysis data."""
         try:
             # Get document analysis
-            analysis = document.analysis_set.first()
+            analysis = document.analyses.first()
             if analysis:
                 analysis_data = {
                     'summary': analysis.summary,
-                    'word_count': analysis.word_count,
+                    'total_words': analysis.total_words,
                     'complexity_level': analysis.complexity_level,
-                    'legal_terms': analysis.legal_terms,
+                    'legal_terms_found': analysis.legal_terms_found,
                     'created_at': analysis.created_at.isoformat()
                 }
                 
@@ -383,7 +383,7 @@ class PerformanceOptimizer:
         """Optimize semantic search query."""
         try:
             # Check cache first
-            cache_key = f"search_{document.id}_{hash(query)}_{top_k}"
+            cache_key = f"search_{str(document.id)}_{hash(query)}_{top_k}"
             cached_results = cache.get(cache_key)
             
             if cached_results:
@@ -416,11 +416,11 @@ class PerformanceOptimizer:
             logger.error(f"Error optimizing search query: {e}")
             return []
     
-    def optimize_qa_query(self, question: str, document: Document) -> Dict[str, Any]:
+    def optimize_qa_query(self, question: str, document_id: str) -> Dict[str, Any]:
         """Optimize Q&A query processing."""
         try:
             # Check cache first
-            cache_key = f"qa_{document.id}_{hash(question)}"
+            cache_key = f"qa_{document_id}_{hash(question)}"
             cached_result = cache.get(cache_key)
             
             if cached_result:
@@ -433,7 +433,7 @@ class PerformanceOptimizer:
             from .qa_service import qa_service
             
             start_time = time.time()
-            result = qa_service.process_question(question, str(document.id))
+            result = qa_service.process_question(question, document_id)
             processing_time = time.time() - start_time
             
             # Cache result if processing was fast enough
@@ -594,11 +594,18 @@ def optimize_qa(cache_timeout: int = 900):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # Extract question and document from function arguments
-            if len(args) >= 2:
-                question, document_id = args[0], args[1]
-                document = Document.objects.get(id=document_id)
-                return performance_optimizer.optimize_qa_query(question, document)
+            # For instance methods, args[0] is self, args[1] is question_text, args[2] is document_id
+            if len(args) >= 3:
+                question_text, document_id = args[1], args[2]
+                try:
+                    # Validate that document_id is a valid UUID
+                    import uuid
+                    uuid.UUID(document_id)
+                    # Only optimize if document_id is valid
+                    return performance_optimizer.optimize_qa_query(question_text, document_id)
+                except (ValueError, TypeError):
+                    # If document_id is not a valid UUID, just call the original function
+                    pass
             return func(*args, **kwargs)
         return wrapper
     return decorator

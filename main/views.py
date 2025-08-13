@@ -16,11 +16,11 @@ from .forms import DocumentUploadForm
 from .services import DocumentProcessingService, UserSessionService, DocumentManagementService
 from .performance_monitor import performance_monitor, check_memory_usage, check_disk_space, get_performance_alerts
 from .cache_manager import CacheManager
-from .qa_service import qa_service
 from .semantic_search import semantic_search_engine
 from .enhanced_qa_service import enhanced_qa_service
 from .advanced_semantic_search import advanced_semantic_search_engine
 from .performance_optimizer import performance_optimizer
+from .security import security_validator
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,14 @@ def home(request):
     return render(request, 'main/home.html', context)
 
 def upload_document(request):
-    """Handle document upload with validation and processing."""
+    """Handle document upload with enhanced security validation and processing."""
     if request.method == 'POST':
+        # Validate session security first
+        session_validation = security_validator.validate_session_security(request)
+        if not session_validation['success']:
+            messages.error(request, session_validation['error'])
+            return redirect('main:home')
+        
         form = DocumentUploadForm(request.POST, request.FILES)
         if form.is_valid():
             try:
@@ -49,7 +55,7 @@ def upload_document(request):
                 # Get or create user session using service
                 user_session = UserSessionService.get_or_create_session(session_id)
                 
-                # Create document record
+                # Create document record with security metadata
                 document = form.save(commit=False)
                 document.file_size = document.file.size
                 document.original_filename = document.file.name
@@ -312,7 +318,7 @@ def ask_question(request, document_id):
             })
         
         # Process question using enhanced Q&A service
-        result = enhanced_qa_service.process_enhanced_question(question_text, document_id)
+        result = enhanced_qa_service.process_enhanced_question(question_text, str(document_id))
         
         if result['success']:
             return JsonResponse({
@@ -348,7 +354,7 @@ def question_history(request, document_id):
     """Get enhanced question history for a document."""
     try:
         # Get enhanced question history
-        history = enhanced_qa_service.get_enhanced_question_history(document_id, limit=20)
+        history = enhanced_qa_service.get_enhanced_question_history(str(document_id), limit=20)
         
         return JsonResponse({
             'success': True,
@@ -366,7 +372,7 @@ def document_qa_summary(request, document_id):
     """Get enhanced Q&A summary for a document."""
     try:
         # Get enhanced Q&A summary
-        summary = enhanced_qa_service.get_enhanced_qa_summary(document_id)
+        summary = enhanced_qa_service.get_enhanced_qa_summary(str(document_id))
         
         return JsonResponse({
             'success': True,
