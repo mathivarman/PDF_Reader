@@ -14,6 +14,8 @@ import logging
 from .models import Document, Analysis, UserSession
 from .forms import DocumentUploadForm
 from .services import DocumentProcessingService, UserSessionService, DocumentManagementService
+from .performance_monitor import performance_monitor, check_memory_usage, check_disk_space, get_performance_alerts
+from .cache_manager import CacheManager
 
 logger = logging.getLogger(__name__)
 
@@ -95,8 +97,10 @@ def document_detail(request, document_id):
             'document': analysis_data['document'],
             'analysis': analysis_data['analysis'],
             'chunks': analysis_data['chunks'],
+            'clauses': analysis_data.get('clauses', []),
+            'red_flags': analysis_data.get('red_flags', []),
         }
-        return render(request, 'main/document_detail.html', context)
+        return render(request, 'main/document_detail_enhanced.html', context)
         
     except Exception as e:
         logger.error(f"Error in document_detail: {e}")
@@ -196,3 +200,51 @@ def delete_document(request, document_id):
     except Exception as e:
         logger.error(f"Exception in delete_document: {e}")
         return JsonResponse({'error': str(e)}, status=500)
+
+def performance_dashboard(request):
+    """Display system performance metrics and monitoring data."""
+    try:
+        # Get system statistics
+        system_stats = performance_monitor.get_system_stats()
+        performance_summary = performance_monitor.get_performance_summary()
+        
+        # Get resource usage
+        memory_usage = check_memory_usage()
+        disk_space = check_disk_space()
+        
+        # Get performance alerts
+        alerts = get_performance_alerts()
+        
+        # Get cache statistics
+        cache_stats = CacheManager.get_cache_stats()
+        
+        # Get document statistics
+        session_id = request.session.get('session_id')
+        if session_id:
+            doc_stats = DocumentManagementService.get_document_stats(session_id)
+        else:
+            doc_stats = {
+                'total_documents': 0,
+                'processed_documents': 0,
+                'pending_documents': 0,
+                'total_pages': 0,
+                'total_size_mb': 0,
+                'average_pages': 0
+            }
+        
+        context = {
+            'system_stats': system_stats,
+            'performance_summary': performance_summary,
+            'memory_usage': memory_usage,
+            'disk_space': disk_space,
+            'alerts': alerts,
+            'cache_stats': cache_stats,
+            'document_stats': doc_stats,
+        }
+        
+        return render(request, 'main/performance_dashboard.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error in performance dashboard: {e}")
+        messages.error(request, 'Error loading performance dashboard.')
+        return redirect('main:home')

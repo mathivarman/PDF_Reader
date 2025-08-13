@@ -109,6 +109,14 @@ class Clause(models.Model):
         ('jurisdiction', 'Jurisdiction'),
         ('arbitration', 'Arbitration'),
         ('force_majeure', 'Force Majeure'),
+        ('indemnification', 'Indemnification'),
+        ('non_compete', 'Non-Compete'),
+        ('severability', 'Severability'),
+        ('entire_agreement', 'Entire Agreement'),
+        ('amendment', 'Amendment'),
+        ('assignment', 'Assignment'),
+        ('notice', 'Notice'),
+        ('governing_law', 'Governing Law'),
         ('other', 'Other'),
     ]
     
@@ -156,16 +164,26 @@ class RedFlag(models.Model):
         ('critical', 'Critical'),
     ]
     
+    CATEGORY_CHOICES = [
+        ('financial', 'Financial'),
+        ('legal', 'Legal'),
+        ('operational', 'Operational'),
+        ('compliance', 'Compliance'),
+        ('reputational', 'Reputational'),
+        ('strategic', 'Strategic'),
+    ]
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='red_flags')
     analysis = models.ForeignKey(Analysis, on_delete=models.CASCADE, related_name='red_flags')
     
     # Risk details
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='legal')
     risk_level = models.CharField(max_length=10, choices=RISK_LEVEL_CHOICES)
     title = models.CharField(max_length=255)
     description = models.TextField(help_text="Description of the risk")
     reason = models.TextField(help_text="Why this is flagged as risky")
-    recommendation = models.TextField(blank=True, help_text="Recommended action")
+    recommendations = models.JSONField(default=list, help_text="List of recommended actions")
     
     # Location information
     page_number = models.IntegerField(default=0)

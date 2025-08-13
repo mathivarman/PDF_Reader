@@ -11,4 +11,5 @@ urlpatterns = [
     path('document/<uuid:document_id>/process/', views.process_document, name='process_document'),
     path('document/<uuid:document_id>/delete/', views.delete_document, name='delete_document'),
     path('upload/progress/', views.upload_progress, name='upload_progress'),
+    path('performance/', views.performance_dashboard, name='performance_dashboard'),
 ]

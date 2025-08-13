@@ -1,0 +1,512 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}{{ document.title }} - Analysis{% endblock %}
+
+{% block extra_css %}
+<style>
+    .nav-tabs .nav-link {
+        color: #6c757d;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 0.75rem 1rem;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: #0d6efd;
+        border-bottom: 2px solid #0d6efd;
+        background: none;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        border-color: transparent;
+        color: #0d6efd;
+    }
+    
+    .clause-card {
+        border-left: 4px solid #28a745;
+        transition: all 0.3s ease;
+    }
+    
+    .clause-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .clause-card.critical {
+        border-left-color: #dc3545;
+    }
+    
+    .clause-card.high {
+        border-left-color: #fd7e14;
+    }
+    
+    .clause-card.medium {
+        border-left-color: #ffc107;
+    }
+    
+    .clause-card.low {
+        border-left-color: #6c757d;
+    }
+    
+    .red-flag-card {
+        border-left: 4px solid #dc3545;
+        transition: all 0.3s ease;
+    }
+    
+    .red-flag-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .red-flag-card.critical {
+        border-left-color: #dc3545;
+        background-color: #f8d7da;
+    }
+    
+    .red-flag-card.high {
+        border-left-color: #fd7e14;
+        background-color: #fff3cd;
+    }
+    
+    .red-flag-card.medium {
+        border-left-color: #ffc107;
+        background-color: #f8f9fa;
+    }
+    
+    .red-flag-card.low {
+        border-left-color: #6c757d;
+        background-color: #f8f9fa;
+    }
+    
+    .confidence-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .importance-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .risk-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .recommendation-item {
+        background: #f8f9fa;
+        border-left: 3px solid #0d6efd;
+        padding: 0.5rem;
+        margin: 0.25rem 0;
+        border-radius: 0.25rem;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stats-number {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .tab-content {
+        min-height: 400px;
+    }
+    
+    .loading-spinner {
+        display: none;
+    }
+    
+    .analysis-loading .loading-spinner {
+        display: block;
+    }
+    
+    .analysis-loading .content-area {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-1">{{ document.title|default:document.original_filename }}</h1>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-file-pdf text-danger me-2"></i>
+                        {{ document.pages }} pages • {{ document.file_size|filesizeformat }} • 
+                        Uploaded {{ document.uploaded_at|date:"M d, Y" }}
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'main:document_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Documents
+                    </a>
+                    <button class="btn btn-danger delete-document" data-document-id="{{ document.id }}">
+                        <i class="fas fa-trash me-2"></i>Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status and Processing -->
+    <div class="row mb-4">
+        <div class="col-12">
+            {% if document.status == 'uploaded' %}
+                <div class="alert alert-info d-flex align-items-center">
+                    <i class="fas fa-spinner fa-spin me-3"></i>
+                    <div>
+                        <strong>Processing Document...</strong>
+                        <p class="mb-0">Your document is being analyzed. This may take a few moments.</p>
+                    </div>
+                    <button class="btn btn-primary ms-auto" onclick="checkProcessingStatus()">
+                        <i class="fas fa-sync-alt me-2"></i>Refresh
+                    </button>
+                </div>
+            {% elif document.status == 'processed' %}
+                <div class="alert alert-success d-flex align-items-center">
+                    <i class="fas fa-check-circle me-3"></i>
+                    <div>
+                        <strong>Analysis Complete!</strong>
+                        <p class="mb-0">Your document has been successfully analyzed.</p>
+                    </div>
+                </div>
+            {% elif document.status == 'error' %}
+                <div class="alert alert-danger d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle me-3"></i>
+                    <div>
+                        <strong>Processing Error</strong>
+                        <p class="mb-0">There was an error processing your document. Please try again.</p>
+                    </div>
+                    <button class="btn btn-primary ms-auto" onclick="retryProcessing()">
+                        <i class="fas fa-redo me-2"></i>Retry
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if document.status == 'processed' and analysis %}
+    <!-- Analysis Content -->
+    <div class="row">
+        <div class="col-12">
+            <!-- Navigation Tabs -->
+            <ul class="nav nav-tabs" id="analysisTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">
+                        <i class="fas fa-chart-bar me-2"></i>Summary
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="clauses-tab" data-bs-toggle="tab" data-bs-target="#clauses" type="button" role="tab">
+                        <i class="fas fa-gavel me-2"></i>Clauses
+                        {% if clauses %}
+                            <span class="badge bg-primary ms-2">{{ clauses|length }}</span>
+                        {% endif %}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="red-flags-tab" data-bs-toggle="tab" data-bs-target="#red-flags" type="button" role="tab">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Red Flags
+                        {% if red_flags %}
+                            <span class="badge bg-danger ms-2">{{ red_flags|length }}</span>
+                        {% endif %}
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="analysisTabContent">
+                <!-- Summary Tab -->
+                <div class="tab-pane fade show active" id="summary" role="tabpanel">
+                    <div class="row mt-4">
+                        <!-- Statistics Cards -->
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <div class="stats-number">{{ analysis.total_words|floatformat:0 }}</div>
+                                <div class="stats-label">Total Words</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <div class="stats-number">{{ analysis.total_sentences|floatformat:0 }}</div>
+                                <div class="stats-label">Total Sentences</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <div class="stats-number">{{ clauses|length }}</div>
+                                <div class="stats-label">Clauses Detected</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stats-card">
+                                <div class="stats-number">{{ red_flags|length }}</div>
+                                <div class="stats-label">Red Flags</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analysis Summary -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-file-alt me-2"></i>Analysis Summary
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Document Information</h6>
+                                            <ul class="list-unstyled">
+                                                <li><strong>Extraction Method:</strong> {{ analysis.extraction_method|title }}</li>
+                                                <li><strong>Complexity Level:</strong> 
+                                                    <span class="badge bg-{% if analysis.complexity_level == 'high' %}danger{% elif analysis.complexity_level == 'medium' %}warning{% else %}success{% endif %}">
+                                                        {{ analysis.complexity_level|title }}
+                                                    </span>
+                                                </li>
+                                                <li><strong>Legal Terms Found:</strong> {{ analysis.legal_terms_found|length }}</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Processing Details</h6>
+                                            <ul class="list-unstyled">
+                                                <li><strong>Processing Date:</strong> {{ analysis.created_at|date:"M d, Y H:i" }}</li>
+                                                <li><strong>Processing Notes:</strong> {{ analysis.processing_notes }}</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    
+                                    {% if analysis.summary %}
+                                    <hr>
+                                    <h6>Detailed Summary</h6>
+                                    <div class="bg-light p-3 rounded">
+                                        <pre class="mb-0">{{ analysis.summary }}</pre>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Clauses Tab -->
+                <div class="tab-pane fade" id="clauses" role="tabpanel">
+                    <div class="mt-4">
+                        {% if clauses %}
+                            <div class="row">
+                                {% for clause in clauses %}
+                                <div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="card clause-card {{ clause.importance }}">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <h6 class="card-title mb-0">{{ clause.title }}</h6>
+                                                <div class="d-flex gap-1">
+                                                    <span class="badge importance-badge bg-{% if clause.importance == 'critical' %}danger{% elif clause.importance == 'high' %}warning{% elif clause.importance == 'medium' %}info{% else %}secondary{% endif %}">
+                                                        {{ clause.importance|title }}
+                                                    </span>
+                                                    <span class="badge confidence-badge bg-success">
+                                                        {{ clause.confidence_score|floatformat:0 }}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <p class="card-text small text-muted mb-2">
+                                                <i class="fas fa-map-marker-alt me-1"></i>Page {{ clause.page_number }}
+                                            </p>
+                                            <p class="card-text">{{ clause.snippet|truncatechars:150 }}</p>
+                                            <small class="text-muted">
+                                                <i class="fas fa-tag me-1"></i>{{ clause.get_clause_type_display }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-gavel fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No Clauses Detected</h5>
+                                <p class="text-muted">No legal clauses were found in this document.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Red Flags Tab -->
+                <div class="tab-pane fade" id="red-flags" role="tabpanel">
+                    <div class="mt-4">
+                        {% if red_flags %}
+                            <div class="row">
+                                {% for red_flag in red_flags %}
+                                <div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="card red-flag-card {{ red_flag.risk_level }}">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <h6 class="card-title mb-0">{{ red_flag.title }}</h6>
+                                                <div class="d-flex gap-1">
+                                                    <span class="badge risk-badge bg-{% if red_flag.risk_level == 'critical' %}danger{% elif red_flag.risk_level == 'high' %}warning{% elif red_flag.risk_level == 'medium' %}info{% else %}secondary{% endif %}">
+                                                        {{ red_flag.risk_level|title }}
+                                                    </span>
+                                                    <span class="badge confidence-badge bg-success">
+                                                        {{ red_flag.confidence_score|floatformat:0 }}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <p class="card-text small text-muted mb-2">
+                                                <i class="fas fa-tag me-1"></i>{{ red_flag.get_category_display }}
+                                                <i class="fas fa-map-marker-alt ms-2 me-1"></i>Page {{ red_flag.page_number }}
+                                            </p>
+                                            <p class="card-text">{{ red_flag.description }}</p>
+                                            <p class="card-text small">{{ red_flag.reason }}</p>
+                                            
+                                            {% if red_flag.recommendations %}
+                                            <div class="mt-3">
+                                                <h6 class="text-primary">Recommendations:</h6>
+                                                {% for recommendation in red_flag.recommendations %}
+                                                <div class="recommendation-item">
+                                                    <i class="fas fa-lightbulb text-warning me-2"></i>{{ recommendation }}
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-exclamation-triangle fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No Red Flags Detected</h5>
+                                <p class="text-muted">No significant risks were identified in this document.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete "<span id="documentTitle"></span>"?</p>
+                <p class="text-muted">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let documentToDelete = null;
+    
+    // Delete functionality
+    document.querySelectorAll('.delete-document').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            documentToDelete = {
+                id: this.dataset.documentId,
+                title: '{{ document.title|default:document.original_filename }}'
+            };
+            document.getElementById('documentTitle').textContent = documentToDelete.title;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        });
+    });
+    
+    document.getElementById('confirmDelete').addEventListener('click', function() {
+        if (!documentToDelete) return;
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(`/document/${documentToDelete.id}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+                window.location.href = '{% url "main:document_list" %}';
+            } else {
+                alert('Error deleting document: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting document: ' + error.message);
+        });
+    });
+    
+    // Processing status check
+    function checkProcessingStatus() {
+        location.reload();
+    }
+    
+    // Retry processing
+    function retryProcessing() {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(`/document/{{ document.id }}/process/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error processing document: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error processing document: ' + error.message);
+        });
+    }
+    
+    // Make functions global
+    window.checkProcessingStatus = checkProcessingStatus;
+    window.retryProcessing = retryProcessing;
+});
+</script>
+{% endblock %}
