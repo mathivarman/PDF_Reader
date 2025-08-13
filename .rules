@@ -1,0 +1,67 @@
+# PDF Reader Project Rules
+# ======================
+
+## NO PAID VERSIONS OR APIs POLICY
+==================================
+
+### 1. FREE SOFTWARE ONLY
+- Use ONLY free and open-source software
+- NO paid versions of any libraries, frameworks, or tools
+- NO premium features that require payment
+- NO commercial licenses required
+
+### 2. FREE APIs ONLY
+- Use ONLY free APIs with generous rate limits
+- NO paid API services (OpenAI GPT-4, Google Cloud Vision, etc.)
+- NO API keys that require payment or subscription
+- NO premium API tiers
+
+### 3. ALLOWED FREE ALTERNATIVES
+- **PDF Processing**: PyPDF2, pdfplumber, pdf2image (free)
+- **Text Extraction**: Built-in Python libraries, free OCR tools
+- **Database**: MySQL (free community edition)
+- **Web Framework**: Django (free)
+- **UI Framework**: Bootstrap (free)
+- **Image Processing**: Pillow/PIL (free)
+- **Environment Management**: python-decouple, django-environ (free)
+
+### 4. FORBIDDEN PAID SERVICES
+- ❌ OpenAI GPT-4 (paid)
+- ❌ Google Cloud Vision API (paid)
+- ❌ AWS Textract (paid)
+- ❌ Azure Computer Vision (paid)
+- ❌ Adobe PDF Services (paid)
+- ❌ Any commercial PDF processing APIs
+- ❌ Premium versions of libraries
+- ❌ Paid hosting services (use free tiers only)
+
+### 5. ACCEPTABLE FREE ALTERNATIVES
+- ✅ PyPDF2 for PDF text extraction
+- ✅ pdfplumber for complex PDF parsing
+- ✅ pdf2image for PDF to image conversion
+- ✅ Tesseract OCR (free and open-source)
+- ✅ Built-in Python libraries for text processing
+- ✅ Free tier cloud services (if needed)
+
+### 6. DEVELOPMENT GUIDELINES
+- Always check if a library/API is free before using
+- Prefer open-source solutions over proprietary ones
+- Document any external dependencies and their licensing
+- Test with free alternatives first
+- If a paid service is suggested, find a free alternative
+
+### 7. VERIFICATION
+- Run `verify_env.py` to ensure all packages are free
+- Check package licenses before installation
+- Verify API terms of service for free usage
+- Document any rate limits or usage restrictions
+
+### 8. EXCEPTIONS
+- None. This project must remain completely free to use.
+- No exceptions for "better" paid alternatives.
+- If a feature requires paid services, find a free workaround or omit the feature.
+
+---
+Last Updated: $(date)
+Project: PDF Reader
+Version: 1.0

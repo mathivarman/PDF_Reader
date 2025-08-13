@@ -1,0 +1,23 @@
+# Database Configuration for AI Legal Document Explainer
+# Copy this content to a .env file in your project root
+
+# Environment Mode (True=SQLite, False=MySQL)
+DEBUG=False
+
+# MySQL Database Configuration
+DB_NAME=legal_doc_explainer
+DB_USER=root
+DB_PASSWORD=
+DB_HOST=localhost
+DB_PORT=3306
+
+# Django Configuration
+SECRET_KEY=django-insecure-5vs1=d&=8=&#!kpv-15$cr#15^mmbyb5l82k*axtep-50i2+9x
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Instructions:
+# 1. Create a file named ".env" in your project root
+# 2. Copy the content above to the .env file
+# 3. Update DB_PASSWORD with your MySQL root password
+# 4. Update DB_NAME if you want a different database name
+# 5. Save the file and restart your application
