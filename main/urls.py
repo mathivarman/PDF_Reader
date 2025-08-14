@@ -18,4 +18,5 @@ urlpatterns = [
     path('document/<uuid:document_id>/qa/summary/', views.document_qa_summary, name='document_qa_summary'),
     path('enhanced/performance/', views.enhanced_performance_metrics, name='enhanced_performance_metrics'),
     path('document/<uuid:document_id>/optimize/', views.optimize_document, name='optimize_document'),
+    path('about/', views.about, name='about'),
 ]

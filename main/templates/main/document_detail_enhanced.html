@@ -325,17 +325,18 @@
                                     </div>
                                     
                                     {% if analysis.processing_notes %}
-                                        {% with simple_summary=analysis.processing_notes|extract_simple_summary %}
+                                        {% if "Simple Summary:" in analysis.processing_notes %}
+                                            {% render_simple_summary analysis.processing_notes as simple_summary %}
                                             {% if simple_summary %}
                                             <hr>
                                             <h6><i class="fas fa-file-alt me-2"></i>Simple Summary</h6>
                                             <div class="bg-primary bg-opacity-10 p-4 rounded border border-primary">
                                                 <div class="simple-summary-text">
-                                                    {{ simple_summary|safe|linebreaks }}
+                                                    {{ simple_summary|safe }}
                                                 </div>
                                             </div>
                                             {% endif %}
-                                        {% endwith %}
+                                        {% endif %}
                                     {% endif %}
                                     
                                     {% if analysis.summary %}

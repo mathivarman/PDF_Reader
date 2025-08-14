@@ -79,8 +79,10 @@ def generate_simple_summary(document_text: str, clauses: List, red_flags: List, 
         # Generate content summary from document text
         content_summary = generate_content_summary(document_text, clauses)
         
-        # Generate condensed document summary
-        document_summary = generate_document_summary(document_text, target_words=300)
+        # Generate condensed document summary with better word count calculation
+        # Calculate target words as approximately 1/3 of original document
+        target_words = max(200, min(400, word_count // 3))
+        document_summary = generate_document_summary(document_text, target_words=target_words)
         
         # Generate simple summary
         summary_parts = []
@@ -273,14 +275,14 @@ def generate_content_summary(document_text: str, clauses: List) -> str:
 
 def generate_document_summary(document_text: str, target_words: int = 300) -> str:
     """
-    Generate a condensed summary of the document content in simple English.
+    Generate a comprehensive condensed summary of the document content in simple English.
     
     Args:
         document_text: The full text of the document
         target_words: Target number of words for the summary (default: 300)
         
     Returns:
-        Condensed document summary in plain English
+        Comprehensive document summary in plain English
     """
     try:
         # Clean and prepare text
@@ -295,7 +297,7 @@ def generate_document_summary(document_text: str, target_words: int = 300) -> st
         sentences = re.split(r'[.!?]+', text)
         sentences = [s.strip() for s in sentences if len(s.strip()) > 20]  # Filter short sentences
         
-        # Extract key information patterns
+        # Extract key information patterns with improved regex
         key_patterns = {
             'parties': r'(?:between|by and between|agreement between)\s+([A-Z][A-Z\s]+?)(?:\s+and\s+|\s*,\s*)([A-Z][A-Z\s]+?)(?:\s|$)',
             'effective_date': r'(?:effective|commencement|start)\s+(?:date|as of)\s*:?\s*([^,\n]{5,50})',
@@ -303,7 +305,11 @@ def generate_document_summary(document_text: str, target_words: int = 300) -> st
             'payment': r'(?:payment|fee|price|cost)\s+(?:of|is|amounts? to)\s+([^,\n]{5,50})',
             'termination': r'(?:terminate|termination|end|expire)\s+(?:may|can|will|upon)\s+([^,\n]{5,50})',
             'obligations': r'(?:shall|will|must|agree to)\s+([^,\n]{10,80})',
-            'rights': r'(?:right|entitled|may|can)\s+(?:to|for)\s+([^,\n]{10,80})'
+            'rights': r'(?:right|entitled|may|can)\s+(?:to|for)\s+([^,\n]{10,80})',
+            'services': r'(?:services|products|deliverables)\s+(?:include|consist of|comprise)\s+([^,\n]{10,100})',
+            'liability': r'(?:liability|responsibility|damages)\s+(?:limited to|not exceed|capped at)\s+([^,\n]{10,80})',
+            'confidentiality': r'(?:confidential|proprietary|trade secret)\s+([^,\n]{10,80})',
+            'governing_law': r'(?:governed by|subject to|in accordance with)\s+([^,\n]{10,80})'
         }
         
         extracted_info = {}
@@ -334,14 +340,14 @@ def generate_document_summary(document_text: str, target_words: int = 300) -> st
             if keyword in text_lower:
                 sections.append(keyword.replace('_', ' ').title())
         
-        # Generate summary parts
+        # Generate comprehensive summary parts
         summary_parts = []
         
-        # Document overview
+        # Document overview with enhanced information
         word_count = len(text.split())
         summary_parts.append(f"This {word_count}-word legal document")
         
-        # Document type identification
+        # Enhanced document type identification
         if any(word in text_lower for word in ['lease', 'rental', 'tenancy']):
             summary_parts.append("is a lease agreement")
         elif any(word in text_lower for word in ['employment', 'employee', 'worker']):
@@ -357,7 +363,7 @@ def generate_document_summary(document_text: str, target_words: int = 300) -> st
         else:
             summary_parts.append("is a legal contract")
         
-        # Parties involved
+        # Enhanced parties identification
         if 'parties' in extracted_info:
             parties = extracted_info['parties'][0]
             if len(parties) >= 2:
@@ -365,70 +371,111 @@ def generate_document_summary(document_text: str, target_words: int = 300) -> st
                 party2 = parties[1].strip()
                 summary_parts.append(f"between {party1} and {party2}")
         
-        # Key terms and conditions
+        # Enhanced key terms and conditions
         key_points = []
         
+        # Basic contract information
         if 'effective_date' in extracted_info:
             date_info = extracted_info['effective_date'][0]
-            if len(date_info) > 5:  # Only add if meaningful
+            if len(date_info) > 5:
                 key_points.append(f"Effective date: {date_info}")
         
         if 'term' in extracted_info:
             term_info = extracted_info['term'][0]
-            if len(term_info) > 5:  # Only add if meaningful
+            if len(term_info) > 5:
                 key_points.append(f"Contract term: {term_info}")
         
         if 'payment' in extracted_info:
             payment_info = extracted_info['payment'][0]
-            if len(payment_info) > 5:  # Only add if meaningful
-                key_points.append(f"Payment: {payment_info}")
+            if len(payment_info) > 5:
+                key_points.append(f"Payment terms: {payment_info}")
         
-        # Add key obligations and rights (limit length)
+        # Enhanced obligations and rights
         if 'obligations' in extracted_info:
-            obligations = extracted_info['obligations'][:1]  # Top 1 obligation
-            for obligation in obligations:
+            obligations = extracted_info['obligations'][:2]  # Top 2 obligations
+            for i, obligation in enumerate(obligations):
                 if len(obligation) > 10 and len(obligation) < 80:
-                    key_points.append(f"Key obligation: {obligation}")
+                    key_points.append(f"Key obligation {i+1}: {obligation}")
         
         if 'rights' in extracted_info:
-            rights = extracted_info['rights'][:1]  # Top 1 right
-            for right in rights:
+            rights = extracted_info['rights'][:2]  # Top 2 rights
+            for i, right in enumerate(rights):
                 if len(right) > 10 and len(right) < 80:
-                    key_points.append(f"Key right: {right}")
+                    key_points.append(f"Key right {i+1}: {right}")
         
-        # Add termination information
+        # Additional important clauses
+        if 'services' in extracted_info:
+            services_info = extracted_info['services'][0]
+            if len(services_info) > 10 and len(services_info) < 100:
+                key_points.append(f"Services include: {services_info}")
+        
+        if 'liability' in extracted_info:
+            liability_info = extracted_info['liability'][0]
+            if len(liability_info) > 10 and len(liability_info) < 80:
+                key_points.append(f"Liability: {liability_info}")
+        
+        if 'confidentiality' in extracted_info:
+            confidentiality_info = extracted_info['confidentiality'][0]
+            if len(confidentiality_info) > 10 and len(confidentiality_info) < 80:
+                key_points.append(f"Confidentiality: {confidentiality_info}")
+        
+        if 'governing_law' in extracted_info:
+            law_info = extracted_info['governing_law'][0]
+            if len(law_info) > 10 and len(law_info) < 80:
+                key_points.append(f"Governing law: {law_info}")
+        
+        # Termination information
         if 'termination' in extracted_info:
             termination_info = extracted_info['termination'][0]
-            if len(termination_info) > 5:  # Only add if meaningful
+            if len(termination_info) > 5:
                 key_points.append(f"Termination: {termination_info}")
         
-        # Document structure
+        # Enhanced document structure
         if sections:
             summary_parts.append(f"covering {', '.join(sections[:5])}")
         
         # Combine summary
         full_summary = " ".join(summary_parts) + "."
         
-        # Add key points if space allows
-        if key_points and len(full_summary.split()) < target_words * 0.7:
+        # Add comprehensive key points if space allows
+        if key_points and len(full_summary.split()) < target_words * 0.6:
             # Clean and format key points
             cleaned_points = []
-            for point in key_points[:3]:
+            for point in key_points[:5]:  # Include more key points
                 # Clean up the point text
                 point = re.sub(r'\s+', ' ', point.strip())
-                # Limit point length
-                if len(point) > 100:
-                    point = point[:100] + "..."
+                # Limit point length but allow more detail
+                if len(point) > 120:
+                    point = point[:120] + "..."
                 cleaned_points.append(point)
             
-            key_points_text = " Key points include: " + "; ".join(cleaned_points)
+            # Format key points in a more readable way
+            if len(cleaned_points) == 1:
+                key_points_text = " Key point: " + cleaned_points[0]
+            elif len(cleaned_points) == 2:
+                key_points_text = " Key points: " + cleaned_points[0] + "; " + cleaned_points[1]
+            else:
+                key_points_text = " Key points: " + "; ".join(cleaned_points[:-1]) + "; and " + cleaned_points[-1]
+            
             full_summary += key_points_text
         
-        # Truncate if too long
+        # Smart truncation to maintain readability
         words = full_summary.split()
         if len(words) > target_words:
-            words = words[:target_words]
-            full_summary = " ".join(words) + "..."
+            # Try to find a good breaking point
+            target_index = target_words
+            for i in range(target_words, max(0, target_words - 50), -1):
+                if i < len(words) and words[i].endswith('.'):
+                    target_index = i + 1
+                    break
+                elif i < len(words) and words[i].endswith(';'):
+                    target_index = i + 1
+                    break
+            
+            words = words[:target_index]
+            full_summary = " ".join(words)
+            if not full_summary.endswith('.'):
+                full_summary += "..."
         
         return full_summary
         

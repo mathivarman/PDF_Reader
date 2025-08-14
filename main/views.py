@@ -466,3 +466,105 @@ def optimize_document(request, document_id):
             'success': False,
             'error': 'Error optimizing document.'
         })
+
+def about(request):
+    """About page view showcasing the AI Legal Document Explainer features."""
+    context = {
+        'title': 'About - AI Legal Document Explainer',
+        'description': 'Learn about our AI-powered legal document analysis platform',
+        'features': [
+            {
+                'icon': 'fas fa-upload',
+                'title': 'Smart Document Upload',
+                'description': 'Upload PDF legal documents with advanced security validation and OCR support for scanned documents.',
+                'color': 'primary'
+            },
+            {
+                'icon': 'fas fa-brain',
+                'title': 'AI-Powered Analysis',
+                'description': 'Advanced AI algorithms analyze your documents to extract key information, detect clauses, and identify potential risks.',
+                'color': 'success'
+            },
+            {
+                'icon': 'fas fa-file-alt',
+                'title': 'Simple Summaries',
+                'description': 'Get easy-to-understand summaries in plain English, breaking down complex legal jargon into simple terms.',
+                'color': 'info'
+            },
+            {
+                'icon': 'fas fa-gavel',
+                'title': 'Clause Detection',
+                'description': 'Automatically identify and categorize important legal clauses by importance level (Critical, High, Medium, Low).',
+                'color': 'warning'
+            },
+            {
+                'icon': 'fas fa-exclamation-triangle',
+                'title': 'Red Flag Detection',
+                'description': 'Identify potential risks, unusual terms, and clauses that may need special attention or legal consultation.',
+                'color': 'danger'
+            },
+            {
+                'icon': 'fas fa-question-circle',
+                'title': 'Interactive Q&A',
+                'description': 'Ask specific questions about your document and get context-based answers with confidence scores and citations.',
+                'color': 'secondary'
+            },
+            {
+                'icon': 'fas fa-chart-line',
+                'title': 'Performance Monitoring',
+                'description': 'Real-time performance metrics, processing statistics, and system optimization recommendations.',
+                'color': 'dark'
+            },
+            {
+                'icon': 'fas fa-shield-alt',
+                'title': 'Security & Privacy',
+                'description': 'Advanced security validation, file sanitization, and privacy protection for your sensitive legal documents.',
+                'color': 'success'
+            }
+        ],
+        'how_it_works': [
+            {
+                'step': 1,
+                'title': 'Upload Your Document',
+                'description': 'Simply drag and drop or select your PDF legal document. Our system supports both text-based and scanned documents.',
+                'icon': 'fas fa-upload'
+            },
+            {
+                'step': 2,
+                'title': 'AI Processing',
+                'description': 'Our advanced AI algorithms analyze your document, extracting text, detecting clauses, and identifying potential risks.',
+                'icon': 'fas fa-cogs'
+            },
+            {
+                'step': 3,
+                'title': 'Get Analysis Results',
+                'description': 'View comprehensive analysis including simple summaries, clause breakdowns, red flags, and recommendations.',
+                'icon': 'fas fa-chart-bar'
+            },
+            {
+                'step': 4,
+                'title': 'Ask Questions',
+                'description': 'Use our interactive Q&A system to get specific answers about your document with confidence scores.',
+                'icon': 'fas fa-comments'
+            }
+        ],
+        'document_types': [
+            'Lease Agreements',
+            'Employment Contracts', 
+            'Service Agreements',
+            'Purchase Agreements',
+            'Partnership Agreements',
+            'Non-Disclosure Agreements',
+            'Terms & Conditions',
+            'Privacy Policies',
+            'Business Contracts',
+            'Legal Agreements'
+        ],
+        'stats': {
+            'documents_processed': '1000+',
+            'clauses_detected': '50,000+',
+            'red_flags_identified': '5,000+',
+            'questions_answered': '10,000+'
+        }
+    }
+    return render(request, 'main/about.html', context)
