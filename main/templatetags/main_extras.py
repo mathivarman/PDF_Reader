@@ -1,5 +1,7 @@
 from django import template
 from django.template.defaultfilters import stringfilter
+from django.utils.safestring import mark_safe
+import re
 
 register = template.Library()
 
@@ -27,34 +29,25 @@ def render_simple_summary(processing_notes):
     if not processing_notes:
         return ""
     
-    if "Simple Summary:" in processing_notes:
-        parts = processing_notes.split("Simple Summary:")
-        if len(parts) > 1:
-            summary = parts[1].strip()
-            # Clean up the summary and ensure proper HTML formatting
-            summary = summary.strip()
-            # Ensure the HTML is properly formatted
-            import re
-            # Remove any extra whitespace around HTML tags but preserve line breaks
-            summary = re.sub(r'[ \t]+', ' ', summary)
-            # Mark as safe HTML content
-            from django.utils.safestring import mark_safe
-            return mark_safe(summary)
-    
-    return ""
+    # Remove "Processing Notes:" prefix if present, but keep everything else
+    if "Processing Notes:" in processing_notes:
+        processing_notes = processing_notes.replace("Processing Notes:", "").strip()
     
     if "Simple Summary:" in processing_notes:
         parts = processing_notes.split("Simple Summary:")
         if len(parts) > 1:
             summary = parts[1].strip()
+            
             # Clean up the summary and ensure proper HTML formatting
             summary = summary.strip()
-            # Ensure the HTML is properly formatted
-            import re
+            
             # Remove any extra whitespace around HTML tags but preserve line breaks
             summary = re.sub(r'[ \t]+', ' ', summary)
-            # Mark as safe HTML content
-            from django.utils.safestring import mark_safe
+            
+            # Ensure proper line breaks for readability
+            summary = summary.replace('\n', '<br>')
+            
+            # Mark as safe HTML content so Django renders the HTML properly
             return mark_safe(summary)
     
     return ""
