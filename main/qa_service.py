@@ -17,6 +17,7 @@ from .semantic_search import semantic_search_engine
 from .performance_monitor import monitor_performance
 from .confidence_engine import confidence_analyzer, ConfidenceFactors
 from .recommendation_engine import recommendation_manager
+from .free_ai_service import FreeAIService
 
 logger = logging.getLogger(__name__)
 
@@ -263,26 +264,64 @@ class AnswerGenerator:
         return f"The document outlines the following process: {context[:300]}..."
     
     def _generate_interpretation_answer(self, question: str, search_results: List[Dict[str, Any]]) -> str:
-        """Generate interpretation answer."""
-        context = " ".join([result['chunk_text'] for result in search_results])
-        
-        # Look for explanatory content
-        explanatory_indicators = ['means', 'refers to', 'defined as', 'indicates', 'implies']
-        
-        for indicator in explanatory_indicators:
-            if indicator in context.lower():
-                start_idx = context.lower().find(indicator)
-                if start_idx != -1:
-                    return f"Interpretation: {context[start_idx:start_idx+300]}..."
-        
-        return f"Based on the document context: {context[:300]}..."
+        """Generate interpretation answer using free AI service."""
+        try:
+            # Combine search results into context
+            context = " ".join([result['chunk_text'] for result in search_results])
+            
+            # Use free AI service for better interpretation
+            ai_result = FreeAIService.answer_question(question, context, model_type='legal')
+            
+            if ai_result.get('success') and ai_result.get('answer'):
+                # Use AI-generated interpretation
+                return ai_result['answer']
+            else:
+                # Fallback to original method
+                explanatory_indicators = ['means', 'refers to', 'defined as', 'indicates', 'implies']
+                
+                for indicator in explanatory_indicators:
+                    if indicator in context.lower():
+                        start_idx = context.lower().find(indicator)
+                        if start_idx != -1:
+                            return f"Interpretation: {context[start_idx:start_idx+300]}..."
+                
+                return f"Based on the document context: {context[:300]}..."
+                
+        except Exception as e:
+            logger.error(f"Error in AI interpretation: {e}")
+            # Fallback to original method
+            explanatory_indicators = ['means', 'refers to', 'defined as', 'indicates', 'implies']
+            
+            for indicator in explanatory_indicators:
+                if indicator in context.lower():
+                    start_idx = context.lower().find(indicator)
+                    if start_idx != -1:
+                        return f"Interpretation: {context[start_idx:start_idx+300]}..."
+            
+            return f"Based on the document context: {context[:300]}..."
     
     def _generate_factual_answer(self, question: str, search_results: List[Dict[str, Any]]) -> str:
-        """Generate factual answer."""
-        # Extract the most relevant information
-        best_result = max(search_results, key=lambda x: x['similarity_score'])
-        
-        return f"According to the document: {best_result['chunk_text'][:300]}..."
+        """Generate factual answer using free AI service."""
+        try:
+            # Combine search results into context
+            context = " ".join([result['chunk_text'] for result in search_results])
+            
+            # Use free AI service for better answer generation
+            ai_result = FreeAIService.answer_question(question, context, model_type='default')
+            
+            if ai_result.get('success') and ai_result.get('answer'):
+                # Use AI-generated answer
+                return ai_result['answer']
+            else:
+                # Fallback to original method
+                best_result = max(search_results, key=lambda x: x['similarity_score'])
+                return f"According to the document: {best_result['chunk_text'][:300]}..."
+                
+        except Exception as e:
+            logger.error(f"Error in AI answer generation: {e}")
+            # Fallback to original method
+            best_result = max(search_results, key=lambda x: x['similarity_score'])
+            return f"According to the document: {best_result['chunk_text'][:300]}..."
     
     def _generate_not_found_response(self, question_analysis: Dict[str, Any]) -> Dict[str, Any]:
         """Generate response when information is not found."""
