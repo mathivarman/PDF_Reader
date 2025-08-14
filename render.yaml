@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: pdf-reader-demo
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn pdf_reader.wsgi:application
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        value: .onrender.com
+    autoDeploy: true
+
+databases:
+  - name: pdf-reader-db
+    plan: free

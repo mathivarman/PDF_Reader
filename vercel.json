@@ -1,0 +1,17 @@
+{
+  "builds": [
+    {
+      "src": "pdf_reader/wsgi.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "pdf_reader/wsgi.py"
+    }
+  ],
+  "env": {
+    "DJANGO_SETTINGS_MODULE": "pdf_reader.settings"
+  }
+}
