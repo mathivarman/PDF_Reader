@@ -33,7 +33,7 @@
    ```
    Name: pdf-reader-demo (or any name)
    Environment: Python 3
-   Build Command: pip install -r requirements.txt
+   Build Command: pip install -r requirements-render-lite.txt
    Start Command: gunicorn pdf_reader.wsgi:application
    ```
 
