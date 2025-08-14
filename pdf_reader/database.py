@@ -1,6 +1,6 @@
 """
 Database configuration for AI Legal Document Explainer.
-Supports both development (SQLite) and production (MySQL) environments.
+Supports development (SQLite), production (MySQL), and cloud (PostgreSQL) environments.
 """
 
 import os
@@ -12,13 +12,46 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 def get_database_config():
     """
     Get database configuration based on environment.
-    Returns appropriate database settings for development or production.
+    Returns appropriate database settings for development, production, or cloud deployment.
     """
     
-    # Force SQLite for now to avoid MySQL issues
-    # DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
+    # Check for DATABASE_URL (used by Render, Heroku, etc.)
+    database_url = os.getenv('DATABASE_URL')
     
-    # Always use SQLite for development
+    if database_url:
+        # Parse DATABASE_URL for PostgreSQL
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        
+        return {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': os.getenv('POSTGRES_DB', 'postgres'),
+                'USER': os.getenv('POSTGRES_USER', 'postgres'),
+                'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
+                'HOST': os.getenv('POSTGRES_HOST', 'localhost'),
+                'PORT': os.getenv('POSTGRES_PORT', '5432'),
+            }
+        }
+    
+    # Check for MySQL environment variables
+    db_name = os.getenv('DB_NAME')
+    if db_name:
+        return {
+            'default': {
+                'ENGINE': 'django.db.backends.mysql',
+                'NAME': db_name,
+                'USER': os.getenv('DB_USER', 'root'),
+                'PASSWORD': os.getenv('DB_PASSWORD', ''),
+                'HOST': os.getenv('DB_HOST', 'localhost'),
+                'PORT': os.getenv('DB_PORT', '3306'),
+                'OPTIONS': {
+                    'charset': 'utf8mb4',
+                }
+            }
+        }
+    
+    # Default to SQLite for development
     return {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -69,6 +102,32 @@ DATABASE_INFO = {
             'Database created',
             'User with appropriate permissions',
             'Environment variables configured'
+        ]
+    },
+    'cloud': {
+        'type': 'PostgreSQL',
+        'description': 'PostgreSQL database for cloud deployment (Render, Heroku, etc.)',
+        'environment_variables': {
+            'DATABASE_URL': 'PostgreSQL connection URL (auto-set by cloud platforms)',
+            'POSTGRES_DB': 'Database name',
+            'POSTGRES_USER': 'Database username',
+            'POSTGRES_PASSWORD': 'Database password',
+            'POSTGRES_HOST': 'Database host',
+            'POSTGRES_PORT': 'Database port (default: 5432)',
+        },
+        'advantages': [
+            'Cloud-native',
+            'Auto-scaling',
+            'Managed service',
+            'High availability',
+            'Easy deployment'
+        ],
+        'supported_platforms': [
+            'Render',
+            'Heroku',
+            'Railway',
+            'DigitalOcean',
+            'AWS RDS'
         ]
     }
 }
@@ -122,10 +181,15 @@ def print_database_info():
     print(f"   Debug Mode: {status['debug_mode']}")
     
     print(f"\n🔧 Environment Configuration:")
-    if status['debug_mode']:
+    if 'sqlite' in status['engine']:
         print("   Using SQLite for development")
         print("   Database file: db.sqlite3")
-    else:
+    elif 'postgresql' in status['engine']:
+        print("   Using PostgreSQL for cloud deployment")
+        print("   Environment variables required:")
+        for var, desc in DATABASE_INFO['cloud']['environment_variables'].items():
+            print(f"     {var}: {desc}")
+    elif 'mysql' in status['engine']:
         print("   Using MySQL for production")
         print("   Environment variables required:")
         for var, desc in DATABASE_INFO['production']['environment_variables'].items():
