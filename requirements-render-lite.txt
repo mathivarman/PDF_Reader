@@ -1,0 +1,41 @@
+# Core Django
+Django==4.2.7
+asgiref==3.9.1
+sqlparse==0.5.3
+tzdata==2025.2
+
+# Database (PostgreSQL for Render)
+psycopg2-binary==2.9.9
+
+# Production Server
+gunicorn==21.2.0
+whitenoise==6.6.0
+
+# Environment
+python-decouple==3.8
+
+# PDF Processing (Essential only)
+PyPDF2==3.0.1
+pdfplumber==0.10.3
+
+# Frontend and UI
+crispy-bootstrap5==0.7
+django-crispy-forms==2.1
+
+# File and Image Processing
+pillow==11.3.0
+
+# Text Processing (Lightweight)
+textblob==0.17.1
+regex==2023.12.25
+
+# Security
+cryptography==41.0.8
+django-cors-headers==4.3.1
+
+# API and HTTP
+requests==2.31.0
+httpx==0.26.0
+
+# Basic NLP (No heavy dependencies)
+nltk==3.8.1
