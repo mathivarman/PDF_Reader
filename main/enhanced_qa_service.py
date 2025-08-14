@@ -164,8 +164,8 @@ class EnhancedQAService:
                 # Calculate quality score
                 quality_score = self._calculate_result_quality(result, question_text)
                 
-                # Apply quality threshold
-                if quality_score > 0.3:  # Minimum quality threshold
+                # Apply quality threshold - higher threshold for better document grounding
+                if quality_score > 0.4:  # Increased minimum quality threshold
                     result['quality_score'] = quality_score
                     filtered_results.append(result)
             
@@ -214,13 +214,22 @@ class EnhancedQAService:
         try:
             if not search_results:
                 return {
-                    'answer': 'I could not find relevant information to answer your question.',
+                    'answer': 'I could not find specific information about this in the document. The document may not contain details related to your question.',
                     'answer_type': 'not_found',
                     'grounded': False
                 }
             
             # Extract context from search results
             context_text = " ".join([result['chunk_text'] for result in search_results[:3]])
+            
+            # Check if we have enough relevant content
+            total_relevance = sum(result.get('quality_score', 0.0) for result in search_results)
+            if total_relevance < 1.0:  # Require minimum relevance threshold
+                return {
+                    'answer': 'I could not find specific information about this in the document. The document may not contain details related to your question.',
+                    'answer_type': 'not_found',
+                    'grounded': False
+                }
             
             # Generate answer based on search results
             answer = self._synthesize_answer_from_context(question_text, context_text, search_results)
@@ -242,26 +251,43 @@ class EnhancedQAService:
     
     def _synthesize_answer_from_context(self, question_text: str, context_text: str, 
                                       search_results: List[Dict[str, Any]]) -> str:
-        """Synthesize answer from context and search results."""
+        """Synthesize answer from context and search results - ONLY from document content."""
         try:
-            # Simple answer synthesis (in production, you'd use a more sophisticated approach)
-            best_result = max(search_results, key=lambda x: x.get('quality_score', 0.0))
+            if not search_results:
+                return "I could not find specific information about this in the document."
             
-            # Extract the most relevant sentence or paragraph
+            # Get the best matching result
+            best_result = max(search_results, key=lambda x: x.get('quality_score', 0.0))
             chunk_text = best_result['chunk_text']
             
-            # If the chunk is too long, extract the most relevant part
-            if len(chunk_text) > 300:
-                # Find the sentence that best matches the question
+            # Extract the most relevant part from the document
+            if len(chunk_text) > 400:
+                # Find the most relevant sentence or phrase
                 sentences = chunk_text.split('. ')
-                best_sentence = max(sentences, key=lambda s: self._calculate_sentence_relevance(s, question_text))
-                answer = best_sentence + "."
+                relevant_sentences = []
+                
+                for sentence in sentences:
+                    relevance = self._calculate_sentence_relevance(sentence, question_text)
+                    if relevance > 0.1:  # Only include sentences with some relevance
+                        relevant_sentences.append((sentence, relevance))
+                
+                if relevant_sentences:
+                    # Sort by relevance and take top 2-3 sentences
+                    relevant_sentences.sort(key=lambda x: x[1], reverse=True)
+                    answer_sentences = [s[0] for s in relevant_sentences[:3]]
+                    answer = '. '.join(answer_sentences) + '.'
+                else:
+                    # If no specific sentences match, take the first part of the chunk
+                    answer = chunk_text[:300] + "..." if len(chunk_text) > 300 else chunk_text
             else:
                 answer = chunk_text
             
-            # Add context if available
-            if len(search_results) > 1:
-                answer += f" This information is supported by {len(search_results)} relevant sections in the document."
+            # Ensure the answer is clearly from the document
+            if not answer.strip():
+                return "I could not find specific information about this in the document."
+            
+            # Add document source indication
+            answer = f"Based on the document: {answer}"
             
             return answer
             
@@ -602,18 +628,29 @@ class EnhancedQAService:
             
             history = []
             for question in questions:
-                answer = question.answer_set.first()
+                # Use direct answer field first, then detailed answers
+                answer_text = question.answer if question.answer else None
+                confidence_score = question.confidence_score
+                citations_count = 0
+                
+                # Check for detailed answer if no direct answer
+                if not answer_text:
+                    detailed_answer = question.detailed_answers.first()
+                    if detailed_answer:
+                        answer_text = detailed_answer.answer_text
+                        confidence_score = detailed_answer.confidence_score
+                        citations_count = detailed_answer.citations.count()
                 
                 history.append({
                     'id': str(question.id),
                     'question_text': question.question_text,
-                    'answer': answer.answer_text if answer else None,
-                    'confidence_score': answer.confidence_score if answer else 0.0,
+                    'answer': answer_text,
+                    'confidence_score': confidence_score,
                     'processing_time': question.processing_time,
                     'created_at': question.created_at.isoformat(),
                     'question_type': question.question_type,
                     'complexity_level': question.complexity_level,
-                    'citations_count': answer.citation_set.count() if answer else 0
+                    'citations_count': citations_count
                 })
             
             return history
@@ -644,7 +681,7 @@ class EnhancedQAService:
             
             # Get average confidence and processing time
             avg_confidence = questions.aggregate(
-                avg=models.Avg('answer__confidence_score')
+                avg=models.Avg('confidence_score')
             )['avg'] or 0.0
             
             avg_processing_time = questions.aggregate(
@@ -655,10 +692,16 @@ class EnhancedQAService:
             recent_questions = questions.order_by('-created_at')[:5]
             recent_data = []
             for q in recent_questions:
-                answer = q.answer_set.first()
+                # Use direct answer field first, then detailed answers
+                confidence = q.confidence_score
+                if not q.answer:
+                    detailed_answer = q.detailed_answers.first()
+                    if detailed_answer:
+                        confidence = detailed_answer.confidence_score
+                
                 recent_data.append({
                     'question': q.question_text[:100] + "..." if len(q.question_text) > 100 else q.question_text,
-                    'confidence': answer.confidence_score if answer else 0.0,
+                    'confidence': confidence,
                     'created_at': q.created_at.strftime('%Y-%m-%d %H:%M'),
                     'type': q.question_type
                 })

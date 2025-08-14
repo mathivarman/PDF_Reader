@@ -97,13 +97,19 @@ class DocumentProcessingService:
                     processing_notes=f"Processed {result['page_count']} pages using {result['extraction_method']} method"
                 )
                 
-                # Create document chunks
-                for i, chunk_text in enumerate(chunks):
+                # Create document chunks with embeddings
+                from .semantic_search import semantic_search_engine
+                
+                # Generate embeddings for chunks
+                embeddings = semantic_search_engine.create_embeddings(chunks)
+                
+                for i, (chunk_text, embedding) in enumerate(zip(chunks, embeddings)):
                     DocumentChunk.objects.create(
                         document=document,
                         chunk_index=i,
                         chunk_text=chunk_text,
-                        page_number=0  # Default page number
+                        page_number=0,  # Default page number
+                        embedding=embedding.tolist()
                     )
                 
                 # Save detected clauses

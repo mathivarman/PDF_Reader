@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 import logging
 
-from .models import Document, Analysis, UserSession, Question, Answer, Citation
+from .models import Document, Analysis, UserSession, Question, Answer, Citation, DocumentChunk
 from .forms import DocumentUploadForm
 from .services import DocumentProcessingService, UserSessionService, DocumentManagementService
 from .performance_monitor import performance_monitor, check_memory_usage, check_disk_space, get_performance_alerts
@@ -54,6 +54,29 @@ def upload_document(request):
                 
                 # Get or create user session using service
                 user_session = UserSessionService.get_or_create_session(session_id)
+                
+                # Delete all previous documents for this session (keep only one document at a time)
+                previous_documents = Document.objects.filter(user_session=user_session)
+                if previous_documents.exists():
+                    logger.info(f"Deleting {previous_documents.count()} previous documents for session {session_id}")
+                    for prev_doc in previous_documents:
+                        # Delete associated data
+                        Analysis.objects.filter(document=prev_doc).delete()
+                        DocumentChunk.objects.filter(document=prev_doc).delete()
+                        Question.objects.filter(document=prev_doc).delete()
+                        Answer.objects.filter(question__document=prev_doc).delete()
+                        
+                        # Delete file
+                        if prev_doc.file:
+                            try:
+                                default_storage.delete(prev_doc.file.name)
+                            except Exception as e:
+                                logger.warning(f"Could not delete file {prev_doc.file.name}: {e}")
+                        
+                        # Delete document
+                        prev_doc.delete()
+                    
+                    messages.info(request, f'Previous document(s) deleted. Uploading new document...')
                 
                 # Create document record with security metadata
                 document = form.save(commit=False)
