@@ -17,6 +17,7 @@ from .performance_optimizer import performance_optimizer, optimize_qa
 from .performance_monitor import monitor_performance
 from .confidence_engine import confidence_analyzer, ConfidenceFactors
 from .recommendation_engine import recommendation_manager
+from .free_ai_service import FreeAIService
 
 logger = logging.getLogger(__name__)
 
@@ -251,7 +252,29 @@ class EnhancedQAService:
     
     def _synthesize_answer_from_context(self, question_text: str, context_text: str, 
                                       search_results: List[Dict[str, Any]]) -> str:
-        """Synthesize answer from context and search results - ONLY from document content."""
+        """Synthesize answer from context and search results using free AI service."""
+        try:
+            if not search_results:
+                return "I could not find specific information about this in the document."
+            
+            # Use the free AI service for better answer generation
+            ai_result = FreeAIService.answer_question(question_text, context_text, model_type='default')
+            
+            if ai_result.get('success') and ai_result.get('answer'):
+                # Use AI-generated answer
+                return ai_result['answer']
+            else:
+                # Fallback to original method
+                return self._fallback_answer_generation(question_text, context_text, search_results)
+            
+        except Exception as e:
+            logger.error(f"Error in AI answer synthesis: {e}")
+            # Fallback to original method
+            return self._fallback_answer_generation(question_text, context_text, search_results)
+    
+    def _fallback_answer_generation(self, question_text: str, context_text: str, 
+                                  search_results: List[Dict[str, Any]]) -> str:
+        """Fallback answer generation when AI service is unavailable."""
         try:
             if not search_results:
                 return "I could not find specific information about this in the document."
@@ -292,7 +315,7 @@ class EnhancedQAService:
             return answer
             
         except Exception as e:
-            logger.error(f"Error synthesizing answer: {e}")
+            logger.error(f"Error in fallback answer generation: {e}")
             return context_text[:300] + "..." if len(context_text) > 300 else context_text
     
     def _calculate_sentence_relevance(self, sentence: str, question_text: str) -> float:
