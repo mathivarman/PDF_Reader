@@ -1,0 +1,30 @@
+# Django Settings
+DEBUG=False
+SECRET_KEY=your-super-secret-key-change-this-in-production-1234567890abcdef
+ALLOWED_HOSTS=localhost,127.0.0.1,your-domain.com
+
+# Database Settings
+DB_NAME=pdf_reader_db
+DB_USER=pdf_reader_user
+DB_PASSWORD=your-secure-password
+DB_HOST=localhost
+DB_PORT=3306
+
+# Security Settings
+CSRF_TRUSTED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000,https://your-domain.com
+
+# File Upload Settings
+MAX_FILE_SIZE=15728640
+ALLOWED_FILE_EXTENSIONS=.pdf
+
+# AI API Settings (if using external APIs)
+OPENAI_API_KEY=your-openai-api-key
+CLAUDE_API_KEY=your-claude-api-key
+
+# Production Settings
+SECURE_SSL_REDIRECT=True
+CSRF_COOKIE_SECURE=True
+SESSION_COOKIE_SECURE=True
+SECURE_HSTS_SECONDS=31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS=True
+SECURE_HSTS_PRELOAD=True

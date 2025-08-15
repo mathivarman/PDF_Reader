@@ -1,0 +1,83 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Performance Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Performance Dashboard</h1>
+            <p class="text-muted">System monitoring and performance metrics</p>
+        </div>
+    </div>
+
+    <!-- System Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h4>{{ memory_usage.used_mb|floatformat:0 }} MB</h4>
+                    <p class="mb-0">Memory Used ({{ memory_usage.percent|floatformat:1 }}%)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h4>{{ disk_space.free_gb|floatformat:1 }} GB</h4>
+                    <p class="mb-0">Disk Free ({{ disk_space.used_percent|floatformat:1 }}% used)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h4>{{ system_stats.cpu.usage_percent|floatformat:1 }}%</h4>
+                    <p class="mb-0">CPU Usage ({{ system_stats.cpu.count }} cores)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h4>{{ performance_summary.total_operations|default:0 }}</h4>
+                    <p class="mb-0">Operations Monitored</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Summary -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Performance Summary</h5>
+                </div>
+                <div class="card-body">
+                    {% if performance_summary.message %}
+                        <p>{{ performance_summary.message }}</p>
+                    {% else %}
+                        <p><strong>Total Operations:</strong> {{ performance_summary.total_operations }}</p>
+                        <p><strong>Total Duration:</strong> {{ performance_summary.total_duration_seconds }}s</p>
+                        <p><strong>Average Duration:</strong> {{ performance_summary.average_duration_seconds }}s</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Cache Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Status:</strong> {{ cache_stats.status|title }}</p>
+                    <p><strong>Backend:</strong> {{ cache_stats.cache_backend }}</p>
+                    <p><strong>Timeout:</strong> {{ cache_stats.timeout }}s</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
