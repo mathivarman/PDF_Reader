@@ -1,5 +1,5 @@
 # PythonAnywhere Free Tier Requirements
-# Optimized for PythonAnywhere's environment and limitations
+# Optimized for PythonAnywhere's Python 3.9 environment
 
 # Core Django and Database
 asgiref==3.9.1
@@ -35,8 +35,8 @@ nltk==3.8.1
 python-decouple==3.8
 django-environ==0.11.2
 
-# Security
-cryptography==41.0.8
+# Security (compatible version)
+cryptography==40.0.2
 
 # Performance
 django-cacheops==8.1.0

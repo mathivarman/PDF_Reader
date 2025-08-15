@@ -2,6 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from .models import Document
 from .security import security_validator, file_upload_security
+import re
 
 class DocumentUploadForm(forms.ModelForm):
     """Form for uploading legal documents with enhanced security validation."""
@@ -29,29 +30,17 @@ class DocumentUploadForm(forms.ModelForm):
         if not file:
             raise ValidationError('Please select a file to upload.')
         
-        # Use security validator for comprehensive file validation
-        validation_result = security_validator.validate_file_upload(file)
-        
-        if not validation_result['success']:
-            raise ValidationError(validation_result['error'])
-        
-        # Additional PDF content validation
-        pdf_validation = file_upload_security.validate_pdf_content(file)
-        if not pdf_validation['success']:
-            raise ValidationError(pdf_validation['error'])
-        
-        # Vulnerability scan
-        vulnerability_scan = file_upload_security.scan_for_vulnerabilities(file)
-        if vulnerability_scan['success'] and vulnerability_scan['vulnerabilities']:
-            # Log vulnerabilities but don't block upload for now
-            # In production, you might want to block certain vulnerabilities
-            print(f"Vulnerabilities detected: {vulnerability_scan['vulnerabilities']}")
+        # Use the existing file_upload_security function
+        try:
+            file_upload_security(file)
+        except ValidationError as e:
+            raise ValidationError(str(e))
         
         # Store validation metadata for later use
         self.file_validation_data = {
-            'file_hash': validation_result.get('file_hash'),
-            'pdf_version': pdf_validation.get('pdf_version'),
-            'vulnerabilities': vulnerability_scan.get('vulnerabilities', [])
+            'file_size': file.size,
+            'file_name': file.name,
+            'content_type': file.content_type
         }
         
         return file
@@ -61,8 +50,9 @@ class DocumentUploadForm(forms.ModelForm):
         title = self.cleaned_data.get('title')
         
         if title:
-            # Sanitize title input
-            title = security_validator.sanitize_input(title, max_length=255)
+            # Basic sanitization - remove dangerous characters
+            title = re.sub(r'[<>:"/\\|?*]', '', title)
+            title = title.strip()
         
         if not title:
             # Use filename as title
@@ -71,7 +61,9 @@ class DocumentUploadForm(forms.ModelForm):
                 # Extract filename without extension
                 import os
                 filename = os.path.splitext(file.name)[0]
-                title = security_validator.sanitize_input(filename, max_length=255)
+                # Basic sanitization
+                filename = re.sub(r'[<>:"/\\|?*]', '', filename)
+                title = filename.strip()
         
         return title
     
@@ -79,10 +71,9 @@ class DocumentUploadForm(forms.ModelForm):
         """Save the document with security metadata."""
         document = super().save(commit=False)
         
-        # Add security metadata if available
-        if hasattr(self, 'file_validation_data'):
-            # You could store this in a separate model or as JSON field
-            document.processing_notes = f"Security validation: {self.file_validation_data}"
+        # Security validation data is stored in self.file_validation_data
+        # but Document model doesn't have a processing_notes field
+        # This data could be logged or stored elsewhere if needed
         
         if commit:
             document.save()

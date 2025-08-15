@@ -39,7 +39,7 @@ def upload_document(request):
     if request.method == 'POST':
         # Validate session security first
         session_validation = security_validator.validate_session_security(request)
-        if not session_validation['success']:
+        if not session_validation['valid']:
             messages.error(request, session_validation['error'])
             return redirect('main:home')
         
