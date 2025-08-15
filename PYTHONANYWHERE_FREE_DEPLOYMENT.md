@@ -150,7 +150,25 @@ from django.core.wsgi import get_wsgi_application
 application = get_wsgi_application()
 ```
 
-### 8. Configure Static Files
+### 8. Configure Security Settings
+
+1. **Set environment variables** in PythonAnywhere:
+   ```bash
+   # In PythonAnywhere bash console
+   echo 'export SECURE_SSL_REDIRECT=True' >> ~/.bashrc
+   echo 'export CSRF_COOKIE_SECURE=True' >> ~/.bashrc
+   echo 'export SESSION_COOKIE_SECURE=True' >> ~/.bashrc
+   echo 'export DEBUG=False' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+2. **Or use production settings** (recommended):
+   - Edit your WSGI file to use production settings:
+   ```python
+   os.environ['DJANGO_SETTINGS_MODULE'] = 'pdf_reader.production_settings'
+   ```
+
+### 9. Configure Static Files
 
 1. **In "Web" tab**, scroll down to "Static files"
 2. **Add static file mappings**:
@@ -159,14 +177,23 @@ application = get_wsgi_application()
    - URL: `/media/`
    - Directory: `/home/YOUR_USERNAME/YOUR_REPO_NAME/media/`
 
-### 9. Reload Web App
+### 10. Reload Web App
 
 1. **Click "Reload" button** in the Web tab
 2. **Wait for reload to complete**
 
-### 10. Test Your Application
+### 11. Test Your Application
 
 Visit: `https://YOUR_USERNAME.pythonanywhere.com`
+
+### 12. Verify Security Settings
+
+Run the security test script:
+```bash
+python test_security_settings.py
+```
+
+This should show all security settings are properly configured.
 
 ## Troubleshooting
 
