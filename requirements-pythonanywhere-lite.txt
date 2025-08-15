@@ -1,0 +1,49 @@
+# PythonAnywhere Lite Requirements
+# Optimized for free tier (512MB RAM, 1GB storage) - NO PyTorch
+
+# Core Django
+Django==4.2.7
+django-crispy-forms==2.0
+crispy-bootstrap5==0.7
+
+# Database
+mysqlclient==2.1.1
+
+# Environment variables
+python-decouple==3.8
+
+# PDF Processing (lightweight)
+PyPDF2==3.0.1
+pdfplumber==0.9.0
+
+# Text Processing (lightweight alternatives)
+spacy==3.6.1
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.6.0/en_core_web_sm-3.6.0-py3-none-any.whl
+
+# AI/ML (lightweight alternatives - NO PyTorch)
+sentence-transformers==2.2.2
+transformers==4.33.2
+# torch==2.0.1+cpu  # REMOVED - too large for free tier
+# torchvision==0.15.2+cpu  # REMOVED
+# torchaudio==2.0.2+cpu  # REMOVED
+
+# Hugging Face (free tier)
+huggingface-hub==0.16.4
+
+# Utilities (lightweight)
+numpy==1.24.3
+pandas==2.0.3
+scikit-learn==1.3.0
+
+# File handling
+Pillow==10.0.0
+
+# Security
+cryptography==41.0.3
+
+# Performance monitoring (lightweight)
+psutil==5.9.5
+
+# Note: This version removes PyTorch to stay within 1GB disk limit
+# Some AI features may be limited, but core functionality will work
+# Consider upgrading to paid plan for full AI capabilities
