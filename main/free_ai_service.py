@@ -1,5 +1,5 @@
 """
-Free AI Service for Q&A using Hugging Face Inference API
+Free AI Service for Q&A using multiple free APIs
 Completely free up to 30,000 requests/month
 """
 
@@ -7,6 +7,7 @@ import requests
 import json
 import logging
 import re
+import hashlib
 from typing import Dict, List, Optional
 from django.conf import settings
 
@@ -14,15 +15,20 @@ logger = logging.getLogger(__name__)
 
 class FreeAIService:
     """
-    Free AI service using Hugging Face Inference API
+    Free AI service using multiple free APIs
     No credit card required, up to 30,000 requests/month free
     """
     
-    # Free Hugging Face models for Q&A
+    # Simple cache for consistent answers
+    _answer_cache = {}
+    
+    # Multiple free models for better reliability
     QA_MODELS = {
-        'default': 'deepset/roberta-base-squad2',  # Question-Answering model
-        'legal': 'nlpaueb/legal-bert-base-uncased',  # Legal domain model
-        'general': 'microsoft/DialoGPT-medium',  # General conversation
+        'huggingface_squad': 'deepset/roberta-base-squad2',  # Question-Answering model
+        'huggingface_legal': 'nlpaueb/legal-bert-base-uncased',  # Legal domain model
+        'huggingface_general': 'microsoft/DialoGPT-medium',  # General conversation
+        'openai_free': 'gpt-3.5-turbo',  # OpenAI free tier
+        'google_free': 'gemini-pro',  # Google's free model
     }
     
     @classmethod
@@ -31,80 +37,256 @@ class FreeAIService:
         return getattr(settings, 'HUGGINGFACE_TOKEN', None)
     
     @classmethod
+    def get_openai_token(cls) -> Optional[str]:
+        """Get OpenAI token from environment variables"""
+        return getattr(settings, 'OPENAI_API_KEY', None)
+    
+    @classmethod
+    def get_google_token(cls) -> Optional[str]:
+        """Get Google API token from environment variables"""
+        return getattr(settings, 'GOOGLE_API_KEY', None)
+    
+    @classmethod
     def answer_question(cls, question: str, context: str, model_type: str = 'default') -> Dict:
         """
-        Answer a question using free Hugging Face API
+        Answer a question using multiple free AI services with fallback
         
         Args:
             question: The question to answer
             context: The document context to search in
-            model_type: Type of model to use ('default', 'legal', 'general')
+            model_type: Type of model to use
             
         Returns:
             Dict with answer, confidence, and metadata
         """
+        # Create cache key
+        cache_key = cls._create_cache_key(question, context)
+        
+        # Check cache first
+        if cache_key in cls._answer_cache:
+            logger.info(f"Cache hit for question: {question[:50]}...")
+            return cls._answer_cache[cache_key]
+        
+        # Try multiple AI services in order of preference
+        ai_services = [
+            ('huggingface_squad', cls._try_huggingface_squad),
+            ('huggingface_legal', cls._try_huggingface_legal),
+            ('openai_free', cls._try_openai_free),
+            ('google_free', cls._try_google_free),
+            ('fallback', cls._fallback_answer)
+        ]
+        
+        for service_name, service_func in ai_services:
+            try:
+                logger.info(f"Trying {service_name} for question: {question[:50]}...")
+                result = service_func(question, context)
+                
+                if result.get('success') and result.get('answer'):
+                    logger.info(f"Success with {service_name}")
+                    # Cache the result
+                    cls._answer_cache[cache_key] = result
+                    return result
+                    
+            except Exception as e:
+                logger.warning(f"Error with {service_name}: {e}")
+                continue
+        
+        # If all services fail, use fallback
+        fallback_result = cls._fallback_answer(question, context)
+        cls._answer_cache[cache_key] = fallback_result
+        return fallback_result
+    
+    @classmethod
+    def _create_cache_key(cls, question: str, context: str) -> str:
+        """Create a cache key for the question and context."""
+        # Create a hash of question + first 1000 chars of context
+        content = f"{question.lower().strip()}:{context[:1000].lower().strip()}"
+        return hashlib.md5(content.encode()).hexdigest()
+    
+    @classmethod
+    def _try_huggingface_squad(cls, question: str, context: str) -> Dict:
+        """Try Hugging Face SQuAD model for Q&A."""
         try:
-            model_name = cls.QA_MODELS.get(model_type, cls.QA_MODELS['default'])
-            
-            # Prepare the API request
-            api_url = f"https://api-inference.huggingface.co/models/{model_name}"
+            api_url = "https://api-inference.huggingface.co/models/deepset/roberta-base-squad2"
             
             headers = {
                 "Authorization": f"Bearer {cls.get_huggingface_token()}" if cls.get_huggingface_token() else None,
                 "Content-Type": "application/json"
             }
             
-            # For question-answering models
-            if 'squad' in model_name.lower():
-                payload = {
-                    "inputs": {
-                        "question": question,
-                        "context": context[:4000]  # Limit context length
-                    }
+            payload = {
+                "inputs": {
+                    "question": question,
+                    "context": context[:4000]
                 }
-            else:
-                # For general models, create a prompt
-                prompt = f"Context: {context[:2000]}\n\nQuestion: {question}\n\nAnswer:"
-                payload = {"inputs": prompt}
+            }
             
-            # Make the API request
-            response = requests.post(api_url, headers=headers, json=payload, timeout=30)
+            response = requests.post(api_url, headers=headers, json=payload, timeout=15)
             
             if response.status_code == 200:
                 result = response.json()
-                
-                # Parse different response formats
                 if isinstance(result, list) and len(result) > 0:
                     answer_data = result[0]
-                else:
-                    answer_data = result
-                
-                # Extract answer based on model type
-                if 'squad' in model_name.lower():
                     answer = answer_data.get('answer', '')
                     confidence = answer_data.get('score', 0.0)
-                else:
-                    # For general models, extract generated text
-                    if isinstance(answer_data, dict) and 'generated_text' in answer_data:
-                        answer = answer_data['generated_text']
-                    else:
-                        answer = str(answer_data)
-                    confidence = 0.7  # Default confidence for general models
-                
-                return {
-                    'success': True,
-                    'answer': answer,
-                    'confidence': confidence,
-                    'model': model_name,
-                    'source': 'Hugging Face Free API'
-                }
-            else:
-                logger.warning(f"Hugging Face API error: {response.status_code} - {response.text}")
-                return cls._fallback_answer(question, context)
-                
+                    
+                    if answer and len(answer.strip()) > 10:  # Ensure meaningful answer
+                        return {
+                            'success': True,
+                            'answer': answer,
+                            'confidence': confidence,
+                            'model': 'Hugging Face SQuAD',
+                            'source': 'Hugging Face Free API'
+                        }
+            
+            return {'success': False}
+            
         except Exception as e:
-            logger.error(f"Error in FreeAIService.answer_question: {e}")
-            return cls._fallback_answer(question, context)
+            logger.error(f"Error with Hugging Face SQuAD: {e}")
+            return {'success': False}
+    
+    @classmethod
+    def _try_huggingface_legal(cls, question: str, context: str) -> Dict:
+        """Try Hugging Face Legal BERT model."""
+        try:
+            api_url = "https://api-inference.huggingface.co/models/nlpaueb/legal-bert-base-uncased"
+            
+            headers = {
+                "Authorization": f"Bearer {cls.get_huggingface_token()}" if cls.get_huggingface_token() else None,
+                "Content-Type": "application/json"
+            }
+            
+            # Create a prompt for legal document Q&A
+            prompt = f"Based on this legal document: {context[:2000]}\n\nQuestion: {question}\n\nAnswer from the document:"
+            payload = {"inputs": prompt}
+            
+            response = requests.post(api_url, headers=headers, json=payload, timeout=15)
+            
+            if response.status_code == 200:
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    answer = str(result[0])
+                    if len(answer.strip()) > 20:  # Ensure meaningful answer
+                        return {
+                            'success': True,
+                            'answer': answer,
+                            'confidence': 0.6,
+                            'model': 'Hugging Face Legal BERT',
+                            'source': 'Hugging Face Free API'
+                        }
+            
+            return {'success': False}
+            
+        except Exception as e:
+            logger.error(f"Error with Hugging Face Legal: {e}")
+            return {'success': False}
+    
+    @classmethod
+    def _try_openai_free(cls, question: str, context: str) -> Dict:
+        """Try OpenAI free tier (if API key is available)."""
+        try:
+            api_key = cls.get_openai_token()
+            if not api_key:
+                return {'success': False}
+            
+            api_url = "https://api.openai.com/v1/chat/completions"
+            
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            prompt = f"""Based on this document content, answer the question. Only use information from the document.
+
+Document: {context[:3000]}
+
+Question: {question}
+
+Answer from the document:"""
+            
+            payload = {
+                "model": "gpt-3.5-turbo",
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant that answers questions based only on the provided document content. Always start your answer with 'According to the document:' or 'Based on the document:'"},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": 300,
+                "temperature": 0.3
+            }
+            
+            response = requests.post(api_url, headers=headers, json=payload, timeout=15)
+            
+            if response.status_code == 200:
+                result = response.json()
+                answer = result['choices'][0]['message']['content'].strip()
+                
+                if answer and len(answer) > 20:
+                    return {
+                        'success': True,
+                        'answer': answer,
+                        'confidence': 0.8,
+                        'model': 'OpenAI GPT-3.5',
+                        'source': 'OpenAI Free API'
+                    }
+            
+            return {'success': False}
+            
+        except Exception as e:
+            logger.error(f"Error with OpenAI: {e}")
+            return {'success': False}
+    
+    @classmethod
+    def _try_google_free(cls, question: str, context: str) -> Dict:
+        """Try Google's free Gemini model."""
+        try:
+            api_key = cls.get_google_token()
+            if not api_key:
+                return {'success': False}
+            
+            api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+            
+            prompt = f"""Based on this document content, answer the question. Only use information from the document.
+
+Document: {context[:3000]}
+
+Question: {question}
+
+Answer from the document:"""
+            
+            payload = {
+                "contents": [
+                    {
+                        "parts": [
+                            {"text": prompt}
+                        ]
+                    }
+                ],
+                "generationConfig": {
+                    "maxOutputTokens": 300,
+                    "temperature": 0.3
+                }
+            }
+            
+            response = requests.post(api_url, json=payload, timeout=15)
+            
+            if response.status_code == 200:
+                result = response.json()
+                answer = result['candidates'][0]['content']['parts'][0]['text'].strip()
+                
+                if answer and len(answer) > 20:
+                    return {
+                        'success': True,
+                        'answer': answer,
+                        'confidence': 0.7,
+                        'model': 'Google Gemini',
+                        'source': 'Google Free API'
+                    }
+            
+            return {'success': False}
+            
+        except Exception as e:
+            logger.error(f"Error with Google Gemini: {e}")
+            return {'success': False}
     
     @classmethod
     def _fallback_answer(cls, question: str, context: str) -> Dict:
@@ -137,11 +319,11 @@ class FreeAIService:
             if relevant_content:
                 # Format the answer based on question type
                 answer = cls._format_answer(question, relevant_content, question_analysis)
-                confidence = 0.7
+                confidence = 0.6  # Higher confidence for document-based answers
             else:
                 # If no relevant content found, provide a helpful response
                 answer = cls._generate_helpful_response(question, context)
-                confidence = 0.3
+                confidence = 0.2
             
             return {
                 'success': True,

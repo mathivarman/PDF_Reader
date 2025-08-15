@@ -1,0 +1,65 @@
+# PythonAnywhere Free Tier Requirements
+# Optimized for PythonAnywhere's environment and limitations
+
+# Core Django and Database
+asgiref==3.9.1
+Django==4.2.7
+mysqlclient==2.2.7  # PythonAnywhere includes MySQL
+sqlparse==0.5.3
+tzdata==2025.2
+
+# Web Server and WSGI
+gunicorn==21.2.0
+whitenoise==6.6.0
+
+# Forms and UI
+crispy-bootstrap5==0.7
+django-crispy-forms==2.1
+
+# PDF Processing
+PyPDF2==3.0.1
+pdfplumber==0.10.3
+
+# Text Processing
+python-docx==1.1.0
+openpyxl==3.1.2
+
+# API and HTTP
+requests==2.31.0
+httpx==0.26.0
+
+# Basic NLP (No heavy dependencies)
+nltk==3.8.1
+
+# Environment and Configuration
+python-decouple==3.8
+django-environ==0.11.2
+
+# Security
+cryptography==41.0.8
+
+# Performance
+django-cacheops==8.1.0
+
+# Development and Debugging
+django-debug-toolbar==4.2.0
+
+# File Upload
+Pillow==10.1.0
+
+# Date and Time
+python-dateutil==2.8.2
+
+# JSON and Data
+ujson==5.8.0
+
+# Logging
+colorlog==6.8.0
+
+# Testing
+pytest==7.4.3
+pytest-django==4.7.0
+
+# Code Quality
+black==23.11.0
+flake8==6.1.0
